@@ -118,4 +118,5 @@ void oled_show_string(uint8_t x, uint8_t y, const char *p, uint8_t size);       
 
 /* User Function */
 void oledLog(const char* msg);
+void oledLogClear(void);
 #endif

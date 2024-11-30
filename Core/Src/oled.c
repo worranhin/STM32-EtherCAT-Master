@@ -519,16 +519,24 @@ void oledLog(const char* msg) {
 	int msgLength = strlen(msg);
 	if (msgLength + logLength + 1 < LOG_BUFFER_SIZE) {
 		strcat(logBuffer, msg);
-		strcat(logBuffer, "\n");
 		logLength += msgLength;
 	} else if(msgLength + 1 < LOG_BUFFER_SIZE) {
 		strcpy(logBuffer, msg);
-		strcat(logBuffer, "\n");
 		logLength = msgLength;
 	} else {
 		oledLog("Error in oledLog: msg too long.");
 		return;
 	}
+
+	oled_clear();
+	oled_show_string(0, 0, "Log", 12);
+	oled_show_string(0, 20, logBuffer, 12);
+	oled_refresh_gram();
+}
+
+void oledLogClear(void) {
+	strcpy(logBuffer, "");
+	logLength = 0;
 
 	oled_clear();
 	oled_show_string(0, 0, "Log", 12);

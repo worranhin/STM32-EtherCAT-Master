@@ -227,6 +227,11 @@ static err_t tcp_echoserver_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p
     /* send back the received data (echo) */
     tcp_echoserver_send(tpcb, es);
 
+    char* payload = (char*)(p->payload);
+    oledLogClear();
+    oledLog("TCP received:");
+    oledLog(payload);
+
     ret_err = ERR_OK;
   }
   else if (es->state == ES_RECEIVED)
