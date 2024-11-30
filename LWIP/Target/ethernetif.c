@@ -28,11 +28,13 @@
 #include "netif/etharp.h"
 #include "lwip/ethip6.h"
 #include "ethernetif.h"
-#include "lan8742.h"
+//#include "lan8742.h"
 #include <string.h>
 
 /* Within 'USER CODE' section, code will be kept by default at each generation */
 /* USER CODE BEGIN 0 */
+
+#include "lan8720.h"
 
 /* USER CODE END 0 */
 
@@ -111,15 +113,23 @@ int32_t ETH_PHY_IO_ReadReg(uint32_t DevAddr, uint32_t RegAddr, uint32_t *pRegVal
 int32_t ETH_PHY_IO_WriteReg(uint32_t DevAddr, uint32_t RegAddr, uint32_t RegVal);
 int32_t ETH_PHY_IO_GetTick(void);
 
-lan8742_Object_t LAN8742;
-lan8742_IOCtx_t  LAN8742_IOCtx = {ETH_PHY_IO_Init,
-                                  ETH_PHY_IO_DeInit,
-                                  ETH_PHY_IO_WriteReg,
-                                  ETH_PHY_IO_ReadReg,
-                                  ETH_PHY_IO_GetTick};
+//lan8742_Object_t LAN8742;
+//lan8742_IOCtx_t  LAN8742_IOCtx = {ETH_PHY_IO_Init,
+//                                  ETH_PHY_IO_DeInit,
+//                                  ETH_PHY_IO_WriteReg,
+//                                  ETH_PHY_IO_ReadReg,
+//                                  ETH_PHY_IO_GetTick};
 
 /* USER CODE BEGIN 3 */
 
+lan8720_Object_t LAN8720;
+lan8720_IOCtx_t LAN8720_IOCtx = {
+		ETH_PHY_IO_Init,
+		ETH_PHY_IO_DeInit,
+		ETH_PHY_IO_WriteReg,
+		ETH_PHY_IO_ReadReg,
+		ETH_PHY_IO_GetTick
+};
 /* USER CODE END 3 */
 
 /* Private functions ---------------------------------------------------------*/
@@ -202,29 +212,43 @@ static void low_level_init(struct netif *netif)
 
 /* USER CODE END PHY_PRE_CONFIG */
   /* Set PHY IO functions */
-  LAN8742_RegisterBusIO(&LAN8742, &LAN8742_IOCtx);
+//  LAN8742_RegisterBusIO(&LAN8742, &LAN8742_IOCtx);
+
 
   /* Initialize the LAN8742 ETH PHY */
-  if(LAN8742_Init(&LAN8742) != LAN8742_STATUS_OK)
-  {
-    netif_set_link_down(netif);
-    netif_set_down(netif);
-    return;
-  }
-
-  if (hal_eth_init_status == HAL_OK)
-  {
-  /* Get link state */
-  ethernet_link_check_state(netif);
-  }
-  else
-  {
-    Error_Handler();
-  }
+//  if(LAN8742_Init(&LAN8742) != LAN8742_STATUS_OK)
+//  {
+//    netif_set_link_down(netif);
+//    netif_set_down(netif);
+//    return;
+//  }
+//
+//  if (hal_eth_init_status == HAL_OK)
+//  {
+//  /* Get link state */
+//  ethernet_link_check_state(netif);
+//  }
+//  else
+//  {
+//    Error_Handler();
+//  }
 #endif /* LWIP_ARP || LWIP_ETHERNET */
 
 /* USER CODE BEGIN LOW_LEVEL_INIT */
 
+  LAN8720_RegisterBusIO(&LAN8720, &LAN8720_IOCtx);
+
+  if(LAN8720_Init(&LAN8720) != LAN8720_STATUS_OK) {
+	  netif_set_link_down(netif);
+	  netif_set_down(netif);
+	  return;
+  }
+
+  if (hal_eth_init_status == HAL_OK) {
+	  ethernet_link_check_state(netif);
+  } else {
+	  Error_Handler();
+  }
 /* USER CODE END LOW_LEVEL_INIT */
 }
 
@@ -616,62 +640,62 @@ int32_t ETH_PHY_IO_GetTick(void)
   * @brief  Check the ETH link state then update ETH driver and netif link accordingly.
   * @retval None
   */
-void ethernet_link_check_state(struct netif *netif)
-{
-  ETH_MACConfigTypeDef MACConf = {0};
-  int32_t PHYLinkState = 0;
-  uint32_t linkchanged = 0U, speed = 0U, duplex = 0U;
-
-  PHYLinkState = LAN8742_GetLinkState(&LAN8742);
-
-  if(netif_is_link_up(netif) && (PHYLinkState <= LAN8742_STATUS_LINK_DOWN))
-  {
-    HAL_ETH_Stop_IT(&heth);
-    netif_set_down(netif);
-    netif_set_link_down(netif);
-  }
-  else if(!netif_is_link_up(netif) && (PHYLinkState > LAN8742_STATUS_LINK_DOWN))
-  {
-    switch (PHYLinkState)
-    {
-    case LAN8742_STATUS_100MBITS_FULLDUPLEX:
-      duplex = ETH_FULLDUPLEX_MODE;
-      speed = ETH_SPEED_100M;
-      linkchanged = 1;
-      break;
-    case LAN8742_STATUS_100MBITS_HALFDUPLEX:
-      duplex = ETH_HALFDUPLEX_MODE;
-      speed = ETH_SPEED_100M;
-      linkchanged = 1;
-      break;
-    case LAN8742_STATUS_10MBITS_FULLDUPLEX:
-      duplex = ETH_FULLDUPLEX_MODE;
-      speed = ETH_SPEED_10M;
-      linkchanged = 1;
-      break;
-    case LAN8742_STATUS_10MBITS_HALFDUPLEX:
-      duplex = ETH_HALFDUPLEX_MODE;
-      speed = ETH_SPEED_10M;
-      linkchanged = 1;
-      break;
-    default:
-      break;
-    }
-
-    if(linkchanged)
-    {
-      /* Get MAC Config MAC */
-      HAL_ETH_GetMACConfig(&heth, &MACConf);
-      MACConf.DuplexMode = duplex;
-      MACConf.Speed = speed;
-      HAL_ETH_SetMACConfig(&heth, &MACConf);
-      HAL_ETH_Start_IT(&heth);
-      netif_set_up(netif);
-      netif_set_link_up(netif);
-    }
-  }
-
-}
+//void ethernet_link_check_state(struct netif *netif)
+//{
+//  ETH_MACConfigTypeDef MACConf = {0};
+//  int32_t PHYLinkState = 0;
+//  uint32_t linkchanged = 0U, speed = 0U, duplex = 0U;
+//
+//  PHYLinkState = LAN8742_GetLinkState(&LAN8742);
+//
+//  if(netif_is_link_up(netif) && (PHYLinkState <= LAN8742_STATUS_LINK_DOWN))
+//  {
+//    HAL_ETH_Stop_IT(&heth);
+//    netif_set_down(netif);
+//    netif_set_link_down(netif);
+//  }
+//  else if(!netif_is_link_up(netif) && (PHYLinkState > LAN8742_STATUS_LINK_DOWN))
+//  {
+//    switch (PHYLinkState)
+//    {
+//    case LAN8742_STATUS_100MBITS_FULLDUPLEX:
+//      duplex = ETH_FULLDUPLEX_MODE;
+//      speed = ETH_SPEED_100M;
+//      linkchanged = 1;
+//      break;
+//    case LAN8742_STATUS_100MBITS_HALFDUPLEX:
+//      duplex = ETH_HALFDUPLEX_MODE;
+//      speed = ETH_SPEED_100M;
+//      linkchanged = 1;
+//      break;
+//    case LAN8742_STATUS_10MBITS_FULLDUPLEX:
+//      duplex = ETH_FULLDUPLEX_MODE;
+//      speed = ETH_SPEED_10M;
+//      linkchanged = 1;
+//      break;
+//    case LAN8742_STATUS_10MBITS_HALFDUPLEX:
+//      duplex = ETH_HALFDUPLEX_MODE;
+//      speed = ETH_SPEED_10M;
+//      linkchanged = 1;
+//      break;
+//    default:
+//      break;
+//    }
+//
+//    if(linkchanged)
+//    {
+//      /* Get MAC Config MAC */
+//      HAL_ETH_GetMACConfig(&heth, &MACConf);
+//      MACConf.DuplexMode = duplex;
+//      MACConf.Speed = speed;
+//      HAL_ETH_SetMACConfig(&heth, &MACConf);
+//      HAL_ETH_Start_IT(&heth);
+//      netif_set_up(netif);
+//      netif_set_link_up(netif);
+//    }
+//  }
+//
+//}
 
 void HAL_ETH_RxAllocateCallback(uint8_t **buff)
 {
@@ -742,6 +766,67 @@ void HAL_ETH_TxFreeCallback(uint32_t * buff)
 }
 
 /* USER CODE BEGIN 8 */
+
+/**
+  * @brief  Check the ETH link state then update ETH driver and netif link accordingly.
+  * @retval None
+  */
+void ethernet_link_check_state(struct netif *netif)
+{
+  ETH_MACConfigTypeDef MACConf = {0};
+  int32_t PHYLinkState = 0;
+  uint32_t linkchanged = 0U, speed = 0U, duplex = 0U;
+
+  PHYLinkState = LAN8720_GetLinkState(&LAN8720);
+
+  if(netif_is_link_up(netif) && (PHYLinkState <= LAN8720_STATUS_LINK_DOWN))
+  {
+    HAL_ETH_Stop_IT(&heth);
+    netif_set_down(netif);
+    netif_set_link_down(netif);
+  }
+  else if(!netif_is_link_up(netif) && (PHYLinkState > LAN8720_STATUS_LINK_DOWN))
+  {
+    switch (PHYLinkState)
+    {
+    case LAN8720_STATUS_100MBITS_FULLDUPLEX:
+      duplex = ETH_FULLDUPLEX_MODE;
+      speed = ETH_SPEED_100M;
+      linkchanged = 1;
+      break;
+    case LAN8720_STATUS_100MBITS_HALFDUPLEX:
+      duplex = ETH_HALFDUPLEX_MODE;
+      speed = ETH_SPEED_100M;
+      linkchanged = 1;
+      break;
+    case LAN8720_STATUS_10MBITS_FULLDUPLEX:
+      duplex = ETH_FULLDUPLEX_MODE;
+      speed = ETH_SPEED_10M;
+      linkchanged = 1;
+      break;
+    case LAN8720_STATUS_10MBITS_HALFDUPLEX:
+      duplex = ETH_HALFDUPLEX_MODE;
+      speed = ETH_SPEED_10M;
+      linkchanged = 1;
+      break;
+    default:
+      break;
+    }
+
+    if(linkchanged)
+    {
+      /* Get MAC Config MAC */
+      HAL_ETH_GetMACConfig(&heth, &MACConf);
+      MACConf.DuplexMode = duplex;
+      MACConf.Speed = speed;
+      HAL_ETH_SetMACConfig(&heth, &MACConf);
+      HAL_ETH_Start_IT(&heth);
+      netif_set_up(netif);
+      netif_set_link_up(netif);
+    }
+  }
+
+}
 
 /* USER CODE END 8 */
 

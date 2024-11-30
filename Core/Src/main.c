@@ -28,6 +28,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "key.h"
+#include "tcp_echoserver.h"
 
 /* USER CODE END Includes */
 
@@ -58,6 +59,8 @@ UART_HandleTypeDef huart4;
 char strHead[200] = "Count: ";
 char strCount[100];
 KEY key2;
+char appBuff[100];
+static int count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -68,7 +71,6 @@ static void MX_TIM13_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
-//static void MX_ETH_Init(void);
 static uint8_t getStateOfKey2(void);
 /* USER CODE END PFP */
 
@@ -94,7 +96,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  int count = 0;
+//  int count = 0;
 
   /* USER CODE END Init */
 
@@ -109,9 +111,9 @@ int main(void)
   MX_GPIO_Init();
   MX_UART4_Init();
   MX_TIM13_Init();
-  MX_LWIP_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
+  MX_LWIP_Init();
   /* USER CODE BEGIN 2 */
 
 //  HAL_ETH_Init(heth);
@@ -126,7 +128,7 @@ int main(void)
 
   KeyCreate(&key2, getStateOfKey2);
 
-  ecat_init();
+  tcp_echoserver_init();
 
   /* USER CODE END 2 */
 
@@ -134,21 +136,12 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
-	  // 更新 OLED
-//	  strncpy(strHead, "Count: ", sizeof(strHead) - 1);
-//	  snprintf(strCount, sizeof(strCount), "%d", ++count);
-//	  strcat(strHead, strCount);
-//	  oled_show_string(0, 40, strHead, 12);
-//	  oled_refresh_gram();
+	  MX_LWIP_Process();
 
 	  // 更新 Key
 	  Key_RefreshState(&key2);
-//
-	  if(Key_AccessTimes(&key2, KEY_ACCESS_READ) != 0) {
-		  // LED 闪烁
-//		  HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
 
+	  if(Key_AccessTimes(&key2, KEY_ACCESS_READ) != 0) {
 		  // 更新 OLED
 		  strncpy(strHead, "Count: ", sizeof(strHead) - 1);
 		  snprintf(strCount, sizeof(strCount), "%d", ++count);
@@ -159,7 +152,6 @@ int main(void)
 		  Key_AccessTimes(&key2, KEY_ACCESS_WRITE_CLEAR);
 	  }
 
-//	  HAL_Delay(1);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -393,7 +385,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED5_GPIO_Port, LED5_Pin, GPIO_PIN_RESET);
@@ -402,7 +394,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pin = GPIO_PIN_2;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LED5_Pin */
@@ -424,18 +416,14 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-//static void MX_ETH_Init(void) {
-////	uint32_t regValue = 0;
-////	uint8_t macAddress[6] = {MAC_ADDR0, MAC_ADDR1, MAC_ADDR2, MAC_ADDR3, MAC_ADDR4,
-//
-//}
-
 static uint8_t getStateOfKey2(void) {
 	if(HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_RESET)
 		return 1;
 	else
 		return 0;
 }
+
+/* HAL Callback Functions */
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim13) {

@@ -26,6 +26,10 @@
 #include "oled.h"
 #include "oledfont.h"
 #include "delay.h"
+/* User Include Begin */
+#include <string.h>
+/* User Include End */
+
 
 // 私有函数声明
 static void oled_wr_byte(uint8_t data, uint8_t cmd);    /* 写一个字节到OLED */
@@ -48,6 +52,14 @@ static uint32_t oled_pow(uint8_t m, uint8_t n);         /* OLED求平方函数 *
  * [7]0 1 2 3 ... 127
  */
 static uint8_t g_oled_gram[128][8];
+
+/* User Private Variable Begin */
+
+#define LOG_BUFFER_SIZE 200
+static char logBuffer[LOG_BUFFER_SIZE] = ""; // 存储日志信息
+static int logLength = 0;
+
+/* User Private Variable End */
 
 /**
  * @brief       更新显存到OLED
@@ -499,4 +511,27 @@ void oled_init(void)
     oled_wr_byte(0xA6, OLED_CMD);   /* 设置显示方式;bit0:1,反相显示;0,正常显示 */
     oled_wr_byte(0xAF, OLED_CMD);   /* 开启显示 */
     oled_clear();
+}
+
+/* User Function */
+
+void oledLog(const char* msg) {
+	int msgLength = strlen(msg);
+	if (msgLength + logLength + 1 < LOG_BUFFER_SIZE) {
+		strcat(logBuffer, msg);
+		strcat(logBuffer, "\n");
+		logLength += msgLength;
+	} else if(msgLength + 1 < LOG_BUFFER_SIZE) {
+		strcpy(logBuffer, msg);
+		strcat(logBuffer, "\n");
+		logLength = msgLength;
+	} else {
+		oledLog("Error in oledLog: msg too long.");
+		return;
+	}
+
+	oled_clear();
+	oled_show_string(0, 0, "Log", 12);
+	oled_show_string(0, 20, logBuffer, 12);
+	oled_refresh_gram();
 }
