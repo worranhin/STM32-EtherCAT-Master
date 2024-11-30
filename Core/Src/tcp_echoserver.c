@@ -227,6 +227,7 @@ static err_t tcp_echoserver_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p
     /* send back the received data (echo) */
     tcp_echoserver_send(tpcb, es);
 
+    // 打印信息
     char* payload = (char*)(p->payload);
     oledLogClear();
     oledLog("TCP received:");

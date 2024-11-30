@@ -19,6 +19,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "lan8720.h"
+#include "oled.h"
 
 /** @addtogroup BSP
   * @{
@@ -118,6 +119,29 @@ int32_t  LAN8720_RegisterBusIO(lan8720_Object_t *pObj, lan8720_IOCtx_t *ioctx)
      if(pObj->DevAddr > LAN8720_MAX_DEV_ADDR)
      {
        status = LAN8720_STATUS_ADDRESS_ERROR;
+     }
+
+     /* 软复位 */
+     if(pObj->IO.WriteReg(addr, LAN8720_BCR, LAN8720_BCR_SOFT_RESET) < 0){
+    	 oledLogClear();
+    	 oledLog("In LAN8720_Init soft reset: write error");
+    	 return LAN8720_STATUS_WRITE_ERROR;
+     }
+     do {
+    	 if (pObj->IO.ReadReg(addr, LAN8720_BCR, &regvalue) < 0) {
+    		 oledLogClear();
+    		 oledLog("In LAN8720_Init soft reset: read error");
+    		 return LAN8720_STATUS_READ_ERROR;
+    	 }
+     } while(regvalue & LAN8720_BCR_SOFT_RESET);  // 等待软复位完成
+
+     /* 开启 Auto-Negotiation */
+     if (pObj->IO.ReadReg(addr, LAN8720_BCR, &regvalue) < 0) {
+    	 return LAN8720_STATUS_READ_ERROR;
+     }
+     regvalue |= LAN8720_BCR_AUTONEGO_EN;
+     if (pObj->IO.WriteReg(addr, LAN8720_BCR, regvalue) < 0) {
+    	 return LAN8720_STATUS_WRITE_ERROR;
      }
 
      /* if device address is matched */
