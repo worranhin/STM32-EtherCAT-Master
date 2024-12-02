@@ -39,18 +39,16 @@
 
 /* STM32CubeMX Specific Parameters (not defined in opt.h) ---------------------*/
 /* Parameters set in STM32CubeMX LwIP Configuration GUI -*/
-/*----- WITH_RTOS disabled (Since FREERTOS is not set) -----*/
-#define WITH_RTOS 0
+/*----- WITH_RTOS enabled (Since FREERTOS is set) -----*/
+#define WITH_RTOS 1
+/* Temporary workaround to avoid conflict on errno defined in STM32CubeIDE and lwip sys_arch.c errno */
+#undef LWIP_PROVIDE_ERRNO
 /*----- CHECKSUM_BY_HARDWARE enabled -----*/
 #define CHECKSUM_BY_HARDWARE 1
 /*-----------------------------------------------------------------------------*/
 
 /* LwIP Stack Parameters (modified compared to initialization value in opt.h) -*/
 /* Parameters set in STM32CubeMX LwIP Configuration GUI -*/
-/*----- Value in opt.h for NO_SYS: 0 -----*/
-#define NO_SYS 1
-/*----- Value in opt.h for SYS_LIGHTWEIGHT_PROT: 1 -----*/
-#define SYS_LIGHTWEIGHT_PROT 0
 /*----- Value in opt.h for MEM_ALIGNMENT: 1 -----*/
 #define MEM_ALIGNMENT 4
 /*----- Value in opt.h for LWIP_ETHERNET: LWIP_ARP || PPPOE_SUPPORT -*/
@@ -67,10 +65,26 @@
 #define TCP_WND_UPDATE_THRESHOLD 536
 /*----- Value in opt.h for LWIP_NETIF_LINK_CALLBACK: 0 -----*/
 #define LWIP_NETIF_LINK_CALLBACK 1
-/*----- Value in opt.h for LWIP_NETCONN: 1 -----*/
-#define LWIP_NETCONN 0
-/*----- Value in opt.h for LWIP_SOCKET: 1 -----*/
-#define LWIP_SOCKET 0
+/*----- Value in opt.h for TCPIP_THREAD_STACKSIZE: 0 -----*/
+#define TCPIP_THREAD_STACKSIZE 1024
+/*----- Value in opt.h for TCPIP_THREAD_PRIO: 1 -----*/
+#define TCPIP_THREAD_PRIO 24
+/*----- Value in opt.h for TCPIP_MBOX_SIZE: 0 -----*/
+#define TCPIP_MBOX_SIZE 6
+/*----- Value in opt.h for SLIPIF_THREAD_STACKSIZE: 0 -----*/
+#define SLIPIF_THREAD_STACKSIZE 1024
+/*----- Value in opt.h for SLIPIF_THREAD_PRIO: 1 -----*/
+#define SLIPIF_THREAD_PRIO 3
+/*----- Value in opt.h for DEFAULT_THREAD_STACKSIZE: 0 -----*/
+#define DEFAULT_THREAD_STACKSIZE 1024
+/*----- Value in opt.h for DEFAULT_THREAD_PRIO: 1 -----*/
+#define DEFAULT_THREAD_PRIO 3
+/*----- Value in opt.h for DEFAULT_UDP_RECVMBOX_SIZE: 0 -----*/
+#define DEFAULT_UDP_RECVMBOX_SIZE 6
+/*----- Value in opt.h for DEFAULT_TCP_RECVMBOX_SIZE: 0 -----*/
+#define DEFAULT_TCP_RECVMBOX_SIZE 6
+/*----- Value in opt.h for DEFAULT_ACCEPTMBOX_SIZE: 0 -----*/
+#define DEFAULT_ACCEPTMBOX_SIZE 6
 /*----- Value in opt.h for RECV_BUFSIZE_DEFAULT: INT_MAX -----*/
 #define RECV_BUFSIZE_DEFAULT 2000000000
 /*----- Value in opt.h for LWIP_STATS: 1 -----*/
@@ -97,6 +111,9 @@
 #define CHECKSUM_CHECK_ICMP6 0
 /*-----------------------------------------------------------------------------*/
 /* USER CODE BEGIN 1 */
+
+//#define LWIP_SOCKET 1
+#define LWIP_NETCONN 1
 
 /* USER CODE END 1 */
 

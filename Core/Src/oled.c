@@ -25,9 +25,10 @@
 #include "stdlib.h"
 #include "oled.h"
 #include "oledfont.h"
-#include "delay.h"
+//#include "delay.h"
 /* User Include Begin */
 #include <string.h>
+#include "cmsis_os.h"
 /* User Include End */
 
 
@@ -478,7 +479,8 @@ void oled_init(void)
     OLED_RS(1);
 
     OLED_RST(0);
-    delay_ms(100);
+    HAL_Delay(100);
+//    delay_ms(100);
     OLED_RST(1);
 
     oled_wr_byte(0xAE, OLED_CMD);   /* 关闭显示 */

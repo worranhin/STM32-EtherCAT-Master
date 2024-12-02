@@ -18,17 +18,19 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 #include "lwip.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "oled.h"
-#include "delay.h"
+//#include "delay.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "key.h"
-#include "tcp_echoserver.h"
+#include "tcpecho.h"
+#include "udpecho.h"
 
 /* USER CODE END Includes */
 
@@ -55,12 +57,26 @@ TIM_HandleTypeDef htim13;
 
 UART_HandleTypeDef huart4;
 
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for buttonTask */
+osThreadId_t buttonTaskHandle;
+const osThreadAttr_t buttonTask_attributes = {
+  .name = "buttonTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 /* USER CODE BEGIN PV */
 char strHead[200] = "Count: ";
 char strCount[100];
 KEY key2;
 char appBuff[100];
-static int count = 0;
+//static int count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -70,6 +86,9 @@ static void MX_UART4_Init(void);
 static void MX_TIM13_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
+void StartDefaultTask(void *argument);
+void StartButtonTask(void *argument);
+
 /* USER CODE BEGIN PFP */
 static uint8_t getStateOfKey2(void);
 /* USER CODE END PFP */
@@ -113,12 +132,12 @@ int main(void)
   MX_TIM13_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
-  MX_LWIP_Init();
   /* USER CODE BEGIN 2 */
 
-//  HAL_ETH_Init(heth);
   HAL_TIM_Base_Start_IT(&htim13);
-  delay_init(168);
+
+  // 初始化 OLED
+//  delay_init(168);
   oled_init();
 
   oled_show_string(0, 0, "SCUT", 12);
@@ -128,29 +147,68 @@ int main(void)
 
   KeyCreate(&key2, getStateOfKey2);
 
-  tcp_echoserver_init();
+  NVIC_SetPriorityGrouping( 0 );
 
   /* USER CODE END 2 */
+
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  /* creation of buttonTask */
+  buttonTaskHandle = osThreadNew(StartButtonTask, NULL, &buttonTask_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  MX_LWIP_Process();
+//	  MX_LWIP_Process();
 
 	  // 更新 Key
-	  Key_RefreshState(&key2);
-
-	  if(Key_AccessTimes(&key2, KEY_ACCESS_READ) != 0) {
-		  // 更新 OLED
-		  strncpy(strHead, "Count: ", sizeof(strHead) - 1);
-		  snprintf(strCount, sizeof(strCount), "%d", ++count);
-		  strcat(strHead, strCount);
-		  oled_show_string(0, 40, strHead, 12);
-		  oled_refresh_gram();
-
-		  Key_AccessTimes(&key2, KEY_ACCESS_WRITE_CLEAR);
-	  }
+//	  Key_RefreshState(&key2);
+//
+//	  if(Key_AccessTimes(&key2, KEY_ACCESS_READ) != 0) {
+//		  // 更新 OLED
+//		  strncpy(strHead, "Count: ", sizeof(strHead) - 1);
+//		  snprintf(strCount, sizeof(strCount), "%d", ++count);
+//		  strcat(strHead, strCount);
+//		  oled_show_string(0, 40, strHead, 12);
+//		  oled_refresh_gram();
+//
+//		  Key_AccessTimes(&key2, KEY_ACCESS_WRITE_CLEAR);
+//	  }
 
     /* USER CODE END WHILE */
 
@@ -423,15 +481,75 @@ static uint8_t getStateOfKey2(void) {
 		return 0;
 }
 
-/* HAL Callback Functions */
+/* USER CODE END 4 */
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-	if (htim == &htim13) {
-		HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
-	}
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void *argument)
+{
+  /* init code for LWIP */
+  MX_LWIP_Init();
+  /* USER CODE BEGIN 5 */
+
+//  tcp_echoserver_init();
+  udpecho_init();
+  tcpecho_init();
+
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END 5 */
 }
 
-/* USER CODE END 4 */
+/* USER CODE BEGIN Header_StartButtonTask */
+/**
+* @brief Function implementing the buttonTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartButtonTask */
+void StartButtonTask(void *argument)
+{
+  /* USER CODE BEGIN StartButtonTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartButtonTask */
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM6 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM6) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  if (htim->Instance == TIM13) {
+	  HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
+  }
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
