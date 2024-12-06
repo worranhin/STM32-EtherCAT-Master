@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * @file    lan8720.h
-  * @author  MCD Application Team, Modified by worranhin
+  * @author  worranhin
   * @brief   This file contains all the functions prototypes for the
   *          lan8720.c PHY driver.
   ******************************************************************************
@@ -68,7 +68,7 @@
 //#define LAN8720_CLR      ((uint16_t)0x001CU)
 #define LAN8720_ISFR     ((uint16_t)0x001DU)
 #define LAN8720_IMR      ((uint16_t)0x001EU)
-#define LAN8720_PHYSCSR  ((uint16_t)0x001FU)
+#define LAN8720_PHYSCSR  ((uint16_t)0x001FU)  // PHY SPECIAL CONTROL/STATUS REGISTER
 /**
   * @}
   */
@@ -323,8 +323,8 @@
 /** @defgroup LAN8720_PHYSCSR_Bit_Definition LAN8720 PHYSCSR Bit Definition
   * @{
   */
-#define LAN8720_PHYSCSR_AUTONEGO_DONE   ((uint16_t)0x1000U)
-#define LAN8720_PHYSCSR_HCDSPEEDMASK    ((uint16_t)0x001CU)
+#define LAN8720_PHYSCSR_AUTONEGO_DONE   ((uint16_t)0x1000U) // 12 Auto-negotiation done indication, 0 = Auto-negotiation is not done or disabled (or not active), 1 = Auto-negotiation is done
+#define LAN8720_PHYSCSR_HCDSPEEDMASK    ((uint16_t)0x001CU) // [4:2]
 #define LAN8720_PHYSCSR_10BT_HD         ((uint16_t)0x0004U)
 #define LAN8720_PHYSCSR_10BT_FD         ((uint16_t)0x0014U)
 #define LAN8720_PHYSCSR_100BTX_HD       ((uint16_t)0x0008U)

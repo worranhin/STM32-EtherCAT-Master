@@ -1,373 +1,289 @@
-
-
-/* 包含头文件 ----------------------------------------------------------------*/
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    eth.c
+  * @brief   This file provides code for the configuration
+  *          of the ETH instances.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2024 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
 #include "eth.h"
-//#include "lan8720.h"
 #include "string.h"
-//#include "usart/bsp_debug_usart.h"
 
-/* 私有类型定义 --------------------------------------------------------------*/
+ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
+ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
 
-/* 私有宏定义 ----------------------------------------------------------------*/
+ETH_TxPacketConfig TxConfig;
 
-#if defined ( __ICCARM__ ) /*!< IAR Compiler */
-  #pragma data_alignment=4
-#endif
-__ALIGN_BEGIN ETH_DMADescTypeDef  DMARxDscrTab[ETH_RXBUFNB] __ALIGN_END;/* Ethernet Rx MA Descriptor */
+/* USER CODE BEGIN 0 */
 
-#if defined ( __ICCARM__ ) /*!< IAR Compiler */
-  #pragma data_alignment=4
-#endif
-__ALIGN_BEGIN ETH_DMADescTypeDef  DMATxDscrTab[ETH_TXBUFNB] __ALIGN_END;/* Ethernet Tx DMA Descriptor */
+int32_t ETH_PHY_INTERFACE_Init(void);
+int32_t ETH_PHY_INTERFACE_DeInit (void);
+int32_t ETH_PHY_INTERFACE_ReadReg(uint32_t DevAddr, uint32_t RegAddr, uint32_t *pRegVal);
+int32_t ETH_PHY_INTERFACE_WriteReg(uint32_t DevAddr, uint32_t RegAddr, uint32_t RegVal);
+int32_t ETH_PHY_INTERFACE_GetTick(void);
 
-#if defined ( __ICCARM__ ) /*!< IAR Compiler */
-  #pragma data_alignment=4
-#endif
-__ALIGN_BEGIN uint8_t Rx_Buff[ETH_RXBUFNB][ETH_RX_BUF_SIZE] __ALIGN_END; /* Ethernet Receive Buffer */
+lan8720_Object_t lan8720;
+lan8720_IOCtx_t lan8720_IOCtx = {
+		ETH_PHY_INTERFACE_Init,
+		ETH_PHY_INTERFACE_DeInit,
+		ETH_PHY_INTERFACE_WriteReg,
+		ETH_PHY_INTERFACE_ReadReg,
+		ETH_PHY_INTERFACE_GetTick
+};
 
-#if defined ( __ICCARM__ ) /*!< IAR Compiler */
-  #pragma data_alignment=4
-#endif
-__ALIGN_BEGIN uint8_t Tx_Buff[ETH_TXBUFNB][ETH_TX_BUF_SIZE] __ALIGN_END; /* Ethernet Transmit Buffer */
+/* USER CODE END 0 */
 
-
-/* 私有变量 ------------------------------------------------------------------*/
 ETH_HandleTypeDef heth;
 
-uint8_t RecvLength=0;
-uint32_t current_pbuf_idx =0;
-
-/* 扩展变量 ------------------------------------------------------------------*/
-
-/* 私有函数原形 --------------------------------------------------------------*/
-
-/* 函数体 --------------------------------------------------------------------*/
-/**
-  * 函数功能: ETH初始化
-  * 输入参数: 无
-  * 返 回 值: 无
-  * 说    明: 无
-  */
-//void MX_ETH_Init(void)
-//{
-//  uint32_t regvalue = 0;
-//
-//  uint8_t macaddress[6]= { MAC_ADDR0, MAC_ADDR1, MAC_ADDR2, MAC_ADDR3, MAC_ADDR4, MAC_ADDR5 };
-//
-//  heth.Instance = ETH;
-//  heth.Init.MACAddr = macaddress;
-//  heth.Init.AutoNegotiation = ETH_AUTONEGOTIATION_ENABLE;
-//  heth.Init.Speed = ETH_SPEED_100M;
-//  heth.Init.DuplexMode = ETH_MODE_FULLDUPLEX;
-//  heth.Init.MediaInterface = ETH_MEDIA_INTERFACE_RMII;
-//  heth.Init.RxMode = ETH_RXINTERRUPT_MODE;
-//  heth.Init.ChecksumMode = ETH_CHECKSUM_BY_HARDWARE;
-//  heth.Init.PhyAddress = LAN8720_PHY_ADDRESS;
-//
-//  /* configure ethernet peripheral (GPIOs, clocks, MAC, DMA) */
-//  if (HAL_ETH_Init(&heth) == HAL_OK)
-//  {
-//    printf("ETH初始化成功\n");
-//  }
-//  else
-//  {
-//    printf("ETH初始化失败\n");
-//  }
-//
-//  /* Initialize Tx Descriptors list: Chain Mode */
-//  HAL_ETH_DMATxDescListInit(&heth, DMATxDscrTab, &Tx_Buff[0][0], ETH_TXBUFNB);
-//
-//  /* Initialize Rx Descriptors list: Chain Mode  */
-//  HAL_ETH_DMARxDescListInit(&heth, DMARxDscrTab, &Rx_Buff[0][0], ETH_RXBUFNB);
-//
-//	/* Enable MAC and DMA transmission and reception */
-//	HAL_ETH_Start(&heth);
-//
-//  /**** Configure PHY to generate an interrupt when Eth Link state changes ****/
-//  /* Read Register Configuration */
-//  HAL_ETH_ReadPHYRegister(&heth, PHY_MICR, &regvalue);
-//
-//  regvalue |= (PHY_MICR_INT_EN | PHY_MICR_INT_OE);
-//
-//  /* Enable Interrupts */
-//  HAL_ETH_WritePHYRegister(&heth, PHY_MICR, regvalue );
-//
-//  /* Read Register Configuration */
-//  HAL_ETH_ReadPHYRegister(&heth, PHY_MISR, &regvalue);
-//
-//  regvalue |= PHY_MISR_LINK_INT_EN;
-//
-//  /* Enable Interrupt on change of link status */
-//  HAL_ETH_WritePHYRegister(&heth, PHY_MISR, regvalue);
-//
-//
-//}
-
-//void printfBuffer(uint8_t *dat, uint32_t len )
-//{
-//    //printf("\r\n");
-//    for( int i=0; i<len; i++ )
-//    {
-//        if( (i % 32) == 0 && i != 0 )
-//            printf("\r\n");
-//        else if( (i % 8) == 0 && i != 0 )
-//            printf("  ");
-//
-//        printf("%0.2X ",*dat++);
-//    }
-//    printf("\r\n\r\n");
-//}
-
-/**
-  * 函数功能: ETH引脚初始化
-  * 输入参数: 无
-  * 返 回 值: 无
-  * 说    明: 无
-  */
-//void HAL_ETH_MspInit(ETH_HandleTypeDef* ethHandle)
-//{
-//
-//    GPIO_InitTypeDef GPIO_InitStructure;
-//    /* 使能GPIO端口时钟 */
-//    ETH_GPIO_ClK_ENABLE();
-//    /* 使能ETH外设时钟 */
-//    ETH_RCC_CLK_ENABLE();
-//    /**ETH GPIO Configuration
-//    PB2     ------> ETH_RST
-//    PC1     ------> ETH_MDC
-//    PA1     ------> ETH_REF_CLK
-//    PA2     ------> ETH_MDIO
-//    PA7     ------> ETH_CRS_DV
-//    PC4     ------> ETH_RXD0
-//    PC5     ------> ETH_RXD1
-//    PG11     ------> ETH_TX_EN
-//    PG13     ------> ETH_TXD0
-//    PG14     ------> ETH_TXD1
-//    */
-//    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
-//    GPIO_InitStructure.Pin = GPIO_PIN_2;
-//    GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
-//    GPIO_InitStructure.Pull = GPIO_NOPULL;
-//    GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_HIGH;
-//    GPIO_InitStructure.Alternate = GPIO_AF0_TRACE;
-//    HAL_GPIO_Init(GPIOB, &GPIO_InitStructure);
-//
-//    GPIO_InitStructure.Pin = GPIO_PIN_1 | GPIO_PIN_4 | GPIO_PIN_5;
-//    GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;
-//    GPIO_InitStructure.Pull = GPIO_NOPULL;
-//    GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-//    GPIO_InitStructure.Alternate = GPIO_AFx_ETH;
-//    HAL_GPIO_Init(GPIOC, &GPIO_InitStructure);
-//
-//    GPIO_InitStructure.Pin = GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_7;
-//    GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;
-//    GPIO_InitStructure.Pull = GPIO_NOPULL;
-//    GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-//    GPIO_InitStructure.Alternate = GPIO_AFx_ETH;
-//    HAL_GPIO_Init(GPIOA, &GPIO_InitStructure);
-//
-//    GPIO_InitStructure.Pin = GPIO_PIN_11 | GPIO_PIN_13 | GPIO_PIN_14;
-//    GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;
-//    GPIO_InitStructure.Pull = GPIO_NOPULL;
-//    GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-//    GPIO_InitStructure.Alternate = GPIO_AFx_ETH;
-//    HAL_GPIO_Init(GPIOG, &GPIO_InitStructure);
-//
-////    HAL_NVIC_SetPriority(ETH_IRQn, 1, 0);
-////    HAL_NVIC_EnableIRQ(ETH_IRQn);
-//}
-
-
-/**
-  * 函数功能: PHY初始化
-  * 输入参数: 无
-  * 返 回 值: 无
-  * 说    明: 无
-  */
-//void PHY_Init(void)
-//{
-//
-//	uint8_t status=0;
-//
-//	uint32_t duplex, speed = 0;
-//	int32_t PHYLinkState;
-//
-//	status=LAN8720_Init();
-//	do
-//	{
-//		HAL_Delay(100);
-//
-//		PHYLinkState = LAN8720_GetLinkState();
-//
-//		printf("LAN8720_GetLinkState = %d \r\n",PHYLinkState);
-//
-//	}while(PHYLinkState <= LAN8720_STATUS_LINK_DOWN);
-//
-//	switch (PHYLinkState)
-//	{
-//	case LAN8720_STATUS_100MBITS_FULLDUPLEX:
-//		duplex = ETH_MODE_FULLDUPLEX;
-//		speed = ETH_SPEED_100M;
-//
-//		//printf("LAN8720_STATUS_100MBITS_FULLDUPLEX \r\n");
-//		break;
-//	case LAN8720_STATUS_100MBITS_HALFDUPLEX:
-//		duplex = ETH_MODE_HALFDUPLEX;
-//		speed = ETH_SPEED_100M;
-//
-//		//printf("LAN8720_STATUS_100MBITS_HALFDUPLEX \r\n");
-//		break;
-//	case LAN8720_STATUS_10MBITS_FULLDUPLEX:
-//		duplex = ETH_MODE_FULLDUPLEX;
-//		speed = ETH_SPEED_10M;
-//
-//		//printf("LAN8720_STATUS_10MBITS_FULLDUPLEX \r\n");
-//		break;
-//	case LAN8720_STATUS_10MBITS_HALFDUPLEX:
-//		duplex = ETH_MODE_HALFDUPLEX;
-//		speed = ETH_SPEED_10M;
-//
-//		//printf("LAN8720_STATUS_10MBITS_HALFDUPLEX \r\n");
-//		break;
-//	default:
-//		duplex = ETH_MODE_FULLDUPLEX;
-//		speed = ETH_SPEED_100M;
-//
-//		//printf("ETH_FULLDUPLEX_MODE ETH_SPEED_100M\r\n");
-//		break;
-//	}
-//
-//	heth.Init.DuplexMode = duplex;
-//	heth.Init.Speed = speed;
-//
-//	/* ETHERNET MAC Re-Configuration */
-//	HAL_ETH_ConfigMAC(&heth, (ETH_MACInitTypeDef *) NULL);
-//
-//}
-
-/**
-  * 函数功能: 数据输出
-  * 输入参数: 无
-  * 返 回 值: 无
-  * 说    明: 无
-  */
-void low_level_output(uint8_t *p,uint32_t length)
+/* ETH init function */
+void MX_ETH_Init(void)
 {
-	HAL_StatusTypeDef state;
-	__IO ETH_DMADescTypeDef *DmaTxDesc;
 
-	DmaTxDesc = heth.TxDesc;
+  /* USER CODE BEGIN ETH_Init 0 */
 
-	if ((DmaTxDesc->Status & ETH_DMATXDESC_OWN) != (uint32_t)RESET)
-	{
-		goto error;
-	}
+  /* USER CODE END ETH_Init 0 */
 
-	/* Copy data to Tx buffer*/
-	memcpy((uint8_t *)(DmaTxDesc->Buffer1Addr), (uint8_t *)p, length);
+   static uint8_t MACAddr[6];
 
-	/* wait for unlocked */
-	while (heth.Lock == HAL_LOCKED)
-	{
-	}
+  /* USER CODE BEGIN ETH_Init 1 */
 
-	state = HAL_ETH_TransmitFrame(&heth, length);
-	if (state != HAL_OK)
-	{
-		goto error;
-	}
+  /* USER CODE END ETH_Init 1 */
+  heth.Instance = ETH;
+  MACAddr[0] = 0x00;
+  MACAddr[1] = 0x80;
+  MACAddr[2] = 0xE1;
+  MACAddr[3] = 0x00;
+  MACAddr[4] = 0x00;
+  MACAddr[5] = 0x00;
+  heth.Init.MACAddr = &MACAddr[0];
+  heth.Init.MediaInterface = HAL_ETH_RMII_MODE;
+  heth.Init.TxDesc = DMATxDscrTab;
+  heth.Init.RxDesc = DMARxDscrTab;
+  heth.Init.RxBuffLen = 1536;
 
-error:
+  /* USER CODE BEGIN MACADDRESS */
 
-	/* When Transmit Underflow flag is set, clear it and issue a Transmit Poll Demand to resume transmission */
-	if ((heth.Instance->DMASR & ETH_DMASR_TUS) != (uint32_t)RESET)
-	{
-		/* Clear TUS ETHERNET DMA flag */
-		heth.Instance->DMASR = ETH_DMASR_TUS;
+  /* USER CODE END MACADDRESS */
 
-		/* Resume DMA transmission*/
-		heth.Instance->DMATPDR = 0;
-	}
+  if (HAL_ETH_Init(&heth) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  memset(&TxConfig, 0 , sizeof(ETH_TxPacketConfig));
+  TxConfig.Attributes = ETH_TX_PACKETS_FEATURES_CSUM | ETH_TX_PACKETS_FEATURES_CRCPAD;
+  TxConfig.ChecksumCtrl = ETH_CHECKSUM_IPHDR_PAYLOAD_INSERT_PHDR_CALC;
+  TxConfig.CRCPadCtrl = ETH_CRC_PAD_INSERT;
+  /* USER CODE BEGIN ETH_Init 2 */
+
+  /* Set PHY IO functions */
+  LAN8720_RegisterBusIO(&lan8720, &lan8720_IOCtx);
+  /* Initialize the LAN8742 ETH PHY */
+  LAN8720_Init(&lan8720);
+  /* Initialize link speed negotiation and start Ethernet peripheral */
+  ETH_StartLink();
+
+  /* USER CODE END ETH_Init 2 */
 
 }
 
-void low_level_input()
+void HAL_ETH_MspInit(ETH_HandleTypeDef* ethHandle)
 {
 
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  if(ethHandle->Instance==ETH)
+  {
+  /* USER CODE BEGIN ETH_MspInit 0 */
+
+  /* USER CODE END ETH_MspInit 0 */
+    /* ETH clock enable */
+    __HAL_RCC_ETH_CLK_ENABLE();
+
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOG_CLK_ENABLE();
+    /**ETH GPIO Configuration
+    PC1     ------> ETH_MDC
+    PA1     ------> ETH_REF_CLK
+    PA2     ------> ETH_MDIO
+    PA7     ------> ETH_CRS_DV
+    PC4     ------> ETH_RXD0
+    PC5     ------> ETH_RXD1
+    PG11     ------> ETH_TX_EN
+    PG13     ------> ETH_TXD0
+    PG14     ------> ETH_TXD1
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_4|GPIO_PIN_5;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_7;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = GPIO_PIN_11|GPIO_PIN_13|GPIO_PIN_14;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
+    HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+
+    /* ETH interrupt Init */
+    HAL_NVIC_SetPriority(ETH_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(ETH_IRQn);
+  /* USER CODE BEGIN ETH_MspInit 1 */
+
+  /* USER CODE END ETH_MspInit 1 */
+  }
 }
 
-
-void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth)
+void HAL_ETH_MspDeInit(ETH_HandleTypeDef* ethHandle)
 {
-	low_level_input();
-	printf("rx isr\r\n");
 
+  if(ethHandle->Instance==ETH)
+  {
+  /* USER CODE BEGIN ETH_MspDeInit 0 */
+
+  /* USER CODE END ETH_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_ETH_CLK_DISABLE();
+
+    /**ETH GPIO Configuration
+    PC1     ------> ETH_MDC
+    PA1     ------> ETH_REF_CLK
+    PA2     ------> ETH_MDIO
+    PA7     ------> ETH_CRS_DV
+    PC4     ------> ETH_RXD0
+    PC5     ------> ETH_RXD1
+    PG11     ------> ETH_TX_EN
+    PG13     ------> ETH_TXD0
+    PG14     ------> ETH_TXD1
+    */
+    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_1|GPIO_PIN_4|GPIO_PIN_5);
+
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_7);
+
+    HAL_GPIO_DeInit(GPIOG, GPIO_PIN_11|GPIO_PIN_13|GPIO_PIN_14);
+
+    /* ETH interrupt Deinit */
+    HAL_NVIC_DisableIRQ(ETH_IRQn);
+  /* USER CODE BEGIN ETH_MspDeInit 1 */
+
+  /* USER CODE END ETH_MspDeInit 1 */
+  }
 }
 
+/* USER CODE BEGIN 1 */
 
-
-void HAL_ETH_TxCpltCallback(ETH_HandleTypeDef *heth)
+int32_t ETH_PHY_INTERFACE_Init(void)
 {
-  //printf("tx isr\r\n");
-
+  /* Configure the MDIO Clock */
+  HAL_ETH_SetMDIOClockRange(&heth);
+  return 0;
 }
-
-int bfin_EMAC_send (void *packet, int length)
+int32_t ETH_PHY_INTERFACE_DeInit (void)
 {
-	memcpy(&Tx_Buff[0][0],packet,length);
-
-	low_level_output(Tx_Buff[0],length);
-
-	return 0;
+  return 0;
 }
-
-int bfin_EMAC_recv (uint8_t * packet, size_t size)
+int32_t ETH_PHY_INTERFACE_ReadReg(uint32_t DevAddr, uint32_t RegAddr, uint32_t *pRegVal)
 {
-	uint32_t framelength = 0;
-//	__IO ETH_DMADescTypeDef *dmarxdesc;
-	volatile ETH_DMADescTypeDef *dmarxdesc;
-	uint32_t i=0;
-
-	HAL_StatusTypeDef status = HAL_ETH_GetReceivedFrame(&heth);
-
-	if( status == HAL_OK)
-	{
-			framelength=heth.RxFrameInfos.length;
-
-			memcpy(packet, Rx_Buff[current_pbuf_idx], framelength);
-
-			if(current_pbuf_idx < (ETH_RX_DESC_CNT -1))
-			{
-					current_pbuf_idx++;
-			}
-			else
-			{
-					current_pbuf_idx = 0;
-			}
-
-			/* Release descriptors to DMA */
-			/* Point to first descriptor */
-			dmarxdesc = heth.RxFrameInfos.FSRxDesc;
-			/* Set Own bit in Rx descriptors: gives the buffers back to DMA */
-			for (i=0; i< heth.RxFrameInfos.SegCount; i++)
-			{
-				dmarxdesc->Status |= ETH_DMARXDESC_OWN;
-				dmarxdesc = (ETH_DMADescTypeDef *)(dmarxdesc->Buffer2NextDescAddr);
-			}
-
-			/* Clear Segment_Count */
-			heth.RxFrameInfos.SegCount =0;
-
-			/* When Rx Buffer unavailable flag is set: clear it and resume reception */
-			if ((heth.Instance->DMASR & ETH_DMASR_RBUS) != (uint32_t)RESET)
-			{
-				/* Clear RBUS ETHERNET DMA flag */
-				heth.Instance->DMASR = ETH_DMASR_RBUS;
-				/* Resume DMA reception */
-				heth.Instance->DMARPDR = 0;
-			}
-			return framelength;
-	}
-
-	return -1;
+  if(HAL_ETH_ReadPHYRegister(&heth, DevAddr, RegAddr, pRegVal) != HAL_OK)
+  {
+    return -1;
+  }
+  return 0;
 }
+int32_t ETH_PHY_INTERFACE_WriteReg(uint32_t DevAddr, uint32_t RegAddr, uint32_t RegVal)
+{
+  if(HAL_ETH_WritePHYRegister(&heth, DevAddr, RegAddr, RegVal) != HAL_OK)
+  {
+    return -1;
+  }
+  return 0;
+}
+int32_t ETH_PHY_INTERFACE_GetTick(void)
+{
+  return HAL_GetTick();
+}
+
+void ETH_StartLink(void)
+{
+  ETH_MACConfigTypeDef MACConf = {0};
+  int32_t PHYLinkState = 0U;
+  uint32_t linkchanged = 0U, speed = 0U, duplex =0U;
+  PHYLinkState = LAN8720_GetLinkState(&lan8720);
+  if(PHYLinkState <= LAN8720_STATUS_LINK_DOWN)
+  {
+    HAL_ETH_Stop(&heth);
+  }
+  else if(PHYLinkState > LAN8720_STATUS_LINK_DOWN)
+  {
+    switch (PHYLinkState)
+    {
+    case LAN8720_STATUS_100MBITS_FULLDUPLEX:
+      duplex = ETH_FULLDUPLEX_MODE;
+      speed = ETH_SPEED_100M;
+      linkchanged = 1;
+      break;
+    case LAN8720_STATUS_100MBITS_HALFDUPLEX:
+      duplex = ETH_HALFDUPLEX_MODE;
+      speed = ETH_SPEED_100M;
+      linkchanged = 1;
+      break;
+    case LAN8720_STATUS_10MBITS_FULLDUPLEX:
+      duplex = ETH_FULLDUPLEX_MODE;
+      speed = ETH_SPEED_10M;
+      linkchanged = 1;
+      break;
+    case LAN8720_STATUS_10MBITS_HALFDUPLEX:
+      duplex = ETH_HALFDUPLEX_MODE;
+      speed = ETH_SPEED_10M;
+      linkchanged = 1;
+      break;
+    default:
+      break;
+    }
+    if(linkchanged)
+    {
+      HAL_ETH_GetMACConfig(&heth, &MACConf);
+      MACConf.DuplexMode = duplex;
+      MACConf.Speed = speed;
+      MACConf.DropTCPIPChecksumErrorPacket = DISABLE;
+      MACConf.ForwardRxUndersizedGoodPacket = ENABLE;
+      HAL_ETH_SetMACConfig(&heth, &MACConf);
+      HAL_ETH_Start_IT(&heth);
+      }
+  }
+}
+
+void ETH_ConstructEthernetFrame(ethernet_frame_t * frame, uint8_t * dest_mac, uint8_t * src_mac, uint8_t * type, uint8_t * payload, uint16_t payload_len)
+{
+  // Copy the destination MAC address
+  memcpy(frame -> dest_mac, dest_mac, 6);
+  // Copy the source MAC address
+  memcpy(frame -> src_mac, src_mac, 6);
+  // Set the Ethernet type field
+  memcpy(frame -> type, type, 2);
+  // Copy the payload data
+  memcpy(frame -> payload, payload, payload_len);
+}
+
+/* USER CODE END 1 */

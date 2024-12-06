@@ -75,7 +75,7 @@ int32_t  LAN8720_RegisterBusIO(lan8720_Object_t *pObj, lan8720_IOCtx_t *ioctx)
 }
 
 /**
-  * @brief  Initialize the lan8720 and configure the needed hardware resources
+  * @brief  Initialize the lan8720 and configure the needed hardware resources (blocking to ensure auto-negotiation is done)
   * @param  pObj: device object LAN8720_Object_t.
   * @retval LAN8720_STATUS_OK  if OK
   *         LAN8720_STATUS_ADDRESS_ERROR if cannot find device address
@@ -123,14 +123,10 @@ int32_t  LAN8720_RegisterBusIO(lan8720_Object_t *pObj, lan8720_IOCtx_t *ioctx)
 
      /* 软复位 */
      if(pObj->IO.WriteReg(addr, LAN8720_BCR, LAN8720_BCR_SOFT_RESET) < 0){
-//    	 oledLogClear();
-//    	 oledLog("In LAN8720_Init soft reset: write error");
     	 return LAN8720_STATUS_WRITE_ERROR;
      }
      do {
     	 if (pObj->IO.ReadReg(addr, LAN8720_BCR, &regvalue) < 0) {
-//    		 oledLogClear();
-//    		 oledLog("In LAN8720_Init soft reset: read error");
     		 return LAN8720_STATUS_READ_ERROR;
     	 }
      } while(regvalue & LAN8720_BCR_SOFT_RESET);  // 等待软复位完成
@@ -143,6 +139,10 @@ int32_t  LAN8720_RegisterBusIO(lan8720_Object_t *pObj, lan8720_IOCtx_t *ioctx)
      if (pObj->IO.WriteReg(addr, LAN8720_BCR, regvalue) < 0) {
     	 return LAN8720_STATUS_WRITE_ERROR;
      }
+
+     do {
+    	 pObj->IO.ReadReg(addr, LAN8720_PHYSCSR, &regvalue);
+     } while((regvalue & LAN8720_PHYSCSR_AUTONEGO_DONE) != LAN8720_PHYSCSR_AUTONEGO_DONE); // 等待 auto-negotiation 完成
 
      /* if device address is matched */
      if(status == LAN8720_STATUS_OK)

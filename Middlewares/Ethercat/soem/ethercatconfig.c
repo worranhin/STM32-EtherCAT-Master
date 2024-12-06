@@ -742,7 +742,7 @@ static int ecx_map_sm(ecx_contextt *context, uint16 slave)
    {
       ecx_FPWR(context->port, configadr, ECT_REG_SM0,
          sizeof(ec_smt), &(context->slavelist[slave].SM[0]), EC_TIMEOUTRET3);
-      EC_PRINT("    SM0 Type:%d StartAddr:%4.4x Flags:%8.8x\r\n",
+      EC_PRINT("    SM0 Type:%d StartAddr:%4.4x Flags:%8.8lx\r\n",
           context->slavelist[slave].SMtype[0],
           context->slavelist[slave].SM[0].StartAddr,
           context->slavelist[slave].SM[0].SMflags);
@@ -751,7 +751,7 @@ static int ecx_map_sm(ecx_contextt *context, uint16 slave)
    {
       ecx_FPWR(context->port, configadr, ECT_REG_SM1,
          sizeof(ec_smt), &context->slavelist[slave].SM[1], EC_TIMEOUTRET3);
-      EC_PRINT("    SM1 Type:%d StartAddr:%4.4x Flags:%8.8x\r\n",
+      EC_PRINT("    SM1 Type:%d StartAddr:%4.4x Flags:%8.8lx\r\n",
           context->slavelist[slave].SMtype[1],
           context->slavelist[slave].SM[1].StartAddr,
           context->slavelist[slave].SM[1].SMflags);
@@ -769,7 +769,7 @@ static int ecx_map_sm(ecx_contextt *context, uint16 slave)
          }
          ecx_FPWR(context->port, configadr, (uint16)(ECT_REG_SM0 + (nSM * sizeof(ec_smt))),
             sizeof(ec_smt), &context->slavelist[slave].SM[nSM], EC_TIMEOUTRET3);
-         EC_PRINT("    SM%d Type:%d StartAddr:%4.4x Flags:%8.8x\r\n", nSM,
+         EC_PRINT("    SM%d Type:%d StartAddr:%4.4x Flags:%8.8lx\r\n", nSM,
              context->slavelist[slave].SMtype[nSM],
              context->slavelist[slave].SM[nSM].StartAddr,
              context->slavelist[slave].SM[nSM].SMflags);
@@ -1282,7 +1282,7 @@ int ecx_config_map_group(ecx_contextt *context, void *pIOmap, uint8 group)
          context->slavelist[0].Ibytes = LogAddr - context->slavelist[0].Obytes; /* store input bytes in master record */
       }
 
-      EC_PRINT("IOmapSize %d\r\n", LogAddr - context->grouplist[group].logstartaddr);
+      EC_PRINT("IOmapSize %lu\r\n", LogAddr - context->grouplist[group].logstartaddr);
 
       return (LogAddr - context->grouplist[group].logstartaddr);
    }
@@ -1411,7 +1411,7 @@ int ecx_config_overlap_map_group(ecx_contextt *context, void *pIOmap, uint8 grou
          context->slavelist[0].Ibytes = siLogAddr;
       }
 
-      EC_PRINT("IOmapSize %d\r\n", context->grouplist[group].Obytes + context->grouplist[group].Ibytes);
+      EC_PRINT("IOmapSize %lu\r\n", context->grouplist[group].Obytes + context->grouplist[group].Ibytes);
 
       return (context->grouplist[group].Obytes + context->grouplist[group].Ibytes);
    }
