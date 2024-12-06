@@ -20,10 +20,8 @@ extern "C"
 #include "ethercattype.h"
 #include "nicdrv.h"
 #include "ethercatmain.h"
-#include "types.h"
+//#include "types.h"
 
-    
-    
 uint16 oshw_htons(uint16 host);
 uint16 oshw_ntohs(uint16 network);
 

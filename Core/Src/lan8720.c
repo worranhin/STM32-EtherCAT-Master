@@ -19,7 +19,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "lan8720.h"
-#include "oled.h"
+//#include "oled.h"
 
 /** @addtogroup BSP
   * @{
@@ -123,14 +123,14 @@ int32_t  LAN8720_RegisterBusIO(lan8720_Object_t *pObj, lan8720_IOCtx_t *ioctx)
 
      /* 软复位 */
      if(pObj->IO.WriteReg(addr, LAN8720_BCR, LAN8720_BCR_SOFT_RESET) < 0){
-    	 oledLogClear();
-    	 oledLog("In LAN8720_Init soft reset: write error");
+//    	 oledLogClear();
+//    	 oledLog("In LAN8720_Init soft reset: write error");
     	 return LAN8720_STATUS_WRITE_ERROR;
      }
      do {
     	 if (pObj->IO.ReadReg(addr, LAN8720_BCR, &regvalue) < 0) {
-    		 oledLogClear();
-    		 oledLog("In LAN8720_Init soft reset: read error");
+//    		 oledLogClear();
+//    		 oledLog("In LAN8720_Init soft reset: read error");
     		 return LAN8720_STATUS_READ_ERROR;
     	 }
      } while(regvalue & LAN8720_BCR_SOFT_RESET);  // 等待软复位完成

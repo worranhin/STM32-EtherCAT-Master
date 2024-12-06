@@ -55,7 +55,7 @@ int osal_thread_create(void *thandle, int stacksize, void *func, void *param);
 int osal_thread_create_rt(void *thandle, int stacksize, void *func, void *param);
 
 
-int gettimeofday(timeval *tv);
+//int gettimeofday(timeval *tv);
 
 
 #ifdef __cplusplus

@@ -17,7 +17,8 @@ extern "C"
 #define PACKED_END
 #endif
 
-#define OSAL_THREAD_HANDLE task_t *
+#include "cmsis_os.h"
+#define OSAL_THREAD_HANDLE osThreadId_t
 #define OSAL_THREAD_FUNC void
 #define OSAL_THREAD_FUNC_RT void
 

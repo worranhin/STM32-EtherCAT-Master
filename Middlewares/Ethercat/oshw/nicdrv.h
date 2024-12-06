@@ -11,6 +11,8 @@
 #ifndef _nicdrvh_
 #define _nicdrvh_
 
+#include "cmsis_os2.h"
+
 /** pointer structure to Tx and Rx stacks */
 typedef struct
 {
@@ -64,19 +66,20 @@ typedef struct
    ec_bufT txbuf[EC_MAXBUF];
    /** transmit buffer lenghts */
    int txbuflength[EC_MAXBUF];
-   /** temporary tx buffer ÁÙÊ±tx»º³åÇø*/
+   /** temporary tx buffer */
    ec_bufT txbuf2;
-   /** temporary tx buffer length ÁÙÊ±tx»º³åÇø³¤¶È */
+   /** temporary tx buffer length */
    int txbuflength2;
-   /** last used frame index ×îºóÊ¹ÓÃµÄÖ¡Ë÷Òı*/
+   /** last used frame index */
    int lastidx;
-   /** current redundancy state µ±Ç°ÈßÓà×´Ì¬*/
+   /** current redundancy state */
    int redstate;
-   /** pointer to redundancy port and buffers Ö¸ÏòÈßÓà¶Ë¿ÚºÍ»º³åÇøµÄÖ¸Õë */
+   /** pointer to redundancy port and buffers */
    ecx_redportt *redport;
-   //mtx_t * getindex_mutex;
-   //mtx_t * tx_mutex;
-   //mtx_t * rx_mutex;
+   /** Mutex */
+   osMutexId_t getindex_mutex;
+   osMutexId_t tx_mutex;
+   osMutexId_t rx_mutex;
 } ecx_portt;
 
 extern const uint16 priMAC[3];
@@ -96,13 +99,13 @@ int ec_srconfirm(int idx,int timeout);
 #endif
 
 void ec_setupheader(void *p);
-int ecx_setupnic(ecx_portt *port, const char * ifname, int secondary);      //Íø¿Ú³õÊ¼»¯²¢´ò¿ª
-int ecx_closenic(ecx_portt *port);                                          //Íø¿Ú¹Ø±Õ
-void ecx_setbufstat(ecx_portt *port, int idx, int bufstat);                 //ÉèÖÃidxºÅ»º³åÇø×´Ì¬
-int ecx_getindex(ecx_portt *port);                                          //»ñÈ¡¿ÕÏĞidx»º³åÇøºÅ »ñÈ¡ĞÂµÄÖ¡±êÊ¶·ûË÷Òı²¢·ÖÅäÏàÓ¦µÄrx»º³åÇø¡£    
-int ecx_outframe(ecx_portt *port, int idx, int stacknumber);                //·¢ËÍÊı¾İ
-int ecx_outframe_red(ecx_portt *port, int idx);                             //Í¨¹ı´Î¿Ú·¢ËÍÊı¾İ
-int ecx_waitinframe(ecx_portt *port, int idx, int timeout);                 //µÈ´ıidxºÅ·µ»Ø²¢½ÓÊÕ ½ÓÊÕÊı¾İº¯Êı
-int ecx_srconfirm(ecx_portt *port, int idx,int timeout);                    //·¢ËÍidx ²¢µÈ´ı½ÓÊÕÊı¾İµÄº¯Êı
+int ecx_setupnic(ecx_portt *port, const char * ifname, int secondary);      	//ç½‘å£åˆå§‹åŒ–å¹¶æ‰“å¼€
+int ecx_closenic(ecx_portt *port);                                           	//ç½‘å£å…³é—­
+void ecx_setbufstat(ecx_portt *port, int idx, int bufstat);                 	//è®¾ç½®idxå·ç¼“å†²åŒºçŠ¶
+int ecx_getindex(ecx_portt *port);                                           	//è·å–ç©ºé—²idxç¼“å†²åŒºå·è·å–æ–°çš„å¸§æ ‡è¯†ç¬¦ç´¢å¼•å¹¶åˆ†é…ç›¸åº”çš„rxç¼“å†²åŒº.
+int ecx_outframe(ecx_portt *port, int idx, int stacknumber);                	//å‘é€æ•°æ®
+int ecx_outframe_red(ecx_portt *port, int idx);                             	//é€šè¿‡æ¬¡å£å‘é€æ•°æ®
+int ecx_waitinframe(ecx_portt *port, int idx, int timeout);                 	//ç­‰å¾…idxå·è¿”å›å¹¶æ¥æ”¶ æ¥æ”¶æ•°æ®å‡½æ•°
+int ecx_srconfirm(ecx_portt *port, int idx,int timeout);                    	//å‘é€idx å¹¶ç­‰å¾…æ¥æ”¶æ•°æ®çš„å‡½æ•°
 
 #endif
