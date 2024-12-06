@@ -38,7 +38,7 @@ extern ETH_HandleTypeDef heth;
 
 /* USER CODE BEGIN Private defines */
 
-extern ETH_TxPacketConfig TxConfig;
+extern ETH_TxPacketConfigTypeDef TxConfig;
 
 typedef struct {
 	ETH_BufferTypeDef AppBuff;
