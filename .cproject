@@ -81,7 +81,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="Src/Bsp/lan8742_for_8720.c|Src/sys.c|Src/udpecho.c|Src/tcpecho.c|Src/delay.c|Src/tcp_echoserver.c|Src/ecatuser.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
+						<entry excluding="Src/Bsp/lan8742_for_8720.c|Src/sys.c|Src/udpecho.c|Src/tcpecho.c|Src/delay.c|Src/tcp_echoserver.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
 						<entry excluding="BSP/Components/lan8742" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Ethercat"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Middlewares"/>
@@ -162,7 +162,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="Src/Bsp/lan8742_for_8720.c|Src/sys.c|Src/udpecho.c|Src/tcpecho.c|Src/delay.c|Src/tcp_echoserver.c|Src/ecatuser.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
+						<entry excluding="Src/Bsp/lan8742_for_8720.c|Src/sys.c|Src/udpecho.c|Src/tcpecho.c|Src/delay.c|Src/tcp_echoserver.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
 						<entry excluding="BSP/Components/lan8742" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Ethercat"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Middlewares"/>

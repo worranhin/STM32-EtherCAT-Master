@@ -29,6 +29,7 @@
 #include "eth.h"
 #include <stdio.h>
 #include "oled.h"
+#include "ecatuser.h"
 
 /* USER CODE END Includes */
 
@@ -137,38 +138,41 @@ void StartDefaultTask(void *argument)
 
 	MX_ETH_Init(); // 这个初始化过程必须在线程中进行，否则会出现一些地址错误，原因暂不明，猜测是跟 RTOS 的内存管理相关
 
-	ETH_BufferTypeDef TxBuffer;
-	ethernet_frame_t frame;
-	uint8_t dest_mac[] = {0x00, 0x80, 0xE1, 0x00, 0x00, 0x10}; // Destination MAC Address
-	uint8_t src_mac[] = {0x00, 0x80, 0xE1, 0x00, 0x00, 0x00};  // Source MAC Address
-	uint8_t type[] = {0x08,0x00 }; // EtherType set to IPV4 packet
-	uint8_t payload[] = {0x54,0x65,0x73,0x74,0x69,0x6e,0x67,0x20,0x45,0x74,0x68,0x65,0x72,0x6e,0x65,0x74,0x20,0x6f,0x6e,0x20,0x53,0x54,0x4d,0x33,0x32};
-	uint16_t payload_len = sizeof(payload);
+	ecat_init();
 
-	ETH_ConstructEthernetFrame(&frame, dest_mac, src_mac, type, payload, payload_len);
-	TxBuffer.buffer = (uint8_t *)&frame;
-	TxBuffer.len = sizeof(dest_mac) + sizeof(src_mac) + sizeof(type) + payload_len;
-	TxBuffer.next = NULL;
-	TxConfig.TxBuffer = &TxBuffer;
+//	ETH_BufferTypeDef TxBuffer;
+//	ethernet_frame_t frame;
+//	uint8_t dest_mac[] = {0x00, 0x80, 0xE1, 0x00, 0x00, 0x10}; // Destination MAC Address
+//	uint8_t src_mac[] = {0x00, 0x80, 0xE1, 0x00, 0x00, 0x00};  // Source MAC Address
+//	uint8_t type[] = {0x08,0x00 }; // EtherType set to IPV4 packet
+//	uint8_t payload[] = {0x54,0x65,0x73,0x74,0x69,0x6e,0x67,0x20,0x45,0x74,0x68,0x65,0x72,0x6e,0x65,0x74,0x20,0x6f,0x6e,0x20,0x53,0x54,0x4d,0x33,0x32};
+//	uint16_t payload_len = sizeof(payload);
+//
+//	ETH_ConstructEthernetFrame(&frame, dest_mac, src_mac, type, payload, payload_len);
+//	TxBuffer.buffer = (uint8_t *)&frame;
+//	TxBuffer.len = sizeof(dest_mac) + sizeof(src_mac) + sizeof(type) + payload_len;
+//	TxBuffer.next = NULL;
+//	TxConfig.TxBuffer = &TxBuffer;
 
   /* Infinite loop */
   for(;;)
   {
-	  HAL_StatusTypeDef status;
-	  HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
-	  status = HAL_ETH_Transmit_IT( & heth, & TxConfig);
-	  if (status != HAL_OK) {
-		  uint32_t error = HAL_ETH_GetError(&heth);
-		  printf("%lx", error);
-		  if (error & HAL_ETH_ERROR_DMA) {
-			  uint32_t dmaError = HAL_ETH_GetDMAError(&heth);
-			  printf("DMA error: %lx", dmaError);
-			  Error_Handler();
-		  }
-	  } else {
-		  HAL_ETH_ReleaseTxPacket( & heth);
-	  }
-	  osDelay(1000);
+	  ecat_loop();
+//	  HAL_StatusTypeDef status;
+//	  HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
+//	  status = HAL_ETH_Transmit_IT( & heth, & TxConfig);
+//	  if (status != HAL_OK) {
+//		  uint32_t error = HAL_ETH_GetError(&heth);
+//		  printf("%lx", error);
+//		  if (error & HAL_ETH_ERROR_DMA) {
+//			  uint32_t dmaError = HAL_ETH_GetDMAError(&heth);
+//			  printf("DMA error: %lx", dmaError);
+//			  Error_Handler();
+//		  }
+//	  } else {
+//		  HAL_ETH_ReleaseTxPacket( & heth);
+//	  }
+//	  osDelay(1000);
   }
   /* USER CODE END StartDefaultTask */
 }

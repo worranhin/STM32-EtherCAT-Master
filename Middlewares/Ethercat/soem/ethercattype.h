@@ -28,7 +28,7 @@ extern "C"
 
 /** define EC_VER1 if version 1 default context and functions are needed
  * comment if application uses only ecx_ functions and own context */
-//#define EC_VER1
+#define EC_VER1
 
 #include "osal.h"
 

@@ -24,6 +24,8 @@ uint32_t OpenReady=0;
 int expectedWKC;
 boolean inOP;
 
+ecx_contextt mainContext;
+
 /* 扩展变量 ------------------------------------------------------------------*/
 
 /* 私有函数原形 --------------------------------------------------------------*/
@@ -75,7 +77,7 @@ int write32(uint16 slave, uint16 index, uint8 subindex, int value)
 
 	int rtn = ec_SDOwrite(slave, index, subindex, FALSE, sizeof(temp), &temp, EC_TIMEOUTRXM * 20);
 	if (rtn == 0) { printf("SDOwrite to %#x failed !!! \r\n", index); }
-	else if (USER_DEBUG) { printf("SDOwrite to slave%d  index:%#x value:%x Successed !!! \r\n", slave, index, temp); }
+	else if (USER_DEBUG) { printf("SDOwrite to slave%d  index:%#x value:%lx Successed !!! \r\n", slave, index, temp); }
 	return rtn;
 }
 
@@ -115,7 +117,7 @@ int IS620Nsetup(uint16 slvcnt)
 }
 
 /**
-  * 函数功能: ecat初始化
+  * @brief EtherCAT 初始化
   * 输入参数: 无
   * 返 回 值: 无
   * 说    明: 无
@@ -126,35 +128,34 @@ void ecat_init(void)
 	int i,oloop, iloop;
 
     /* initialise SOEM, bind socket to ifname */
-	if (ec_init("YS-PWM"))
+	if (ec_init("eth0"))
 	{
 		printf("ec_init succeeded.\r\n");
 
 		if ( ec_config_init(FALSE) > 0 )
 		{
-			printf("%x slaves found and configured.%x \r\n",ec_slave[1].eep_man,ec_slave[1].eep_id);
+			printf("%lx slaves found and configured.%lx \r\n",ec_slave[1].eep_man,ec_slave[1].eep_id);
 
 			if ( ec_slavecount >= 1 )
 			{
-			  for(slc = 1; slc <= ec_slavecount; slc++)
-				 {
-					 //汇川伺服
-					 if((ec_slave[slc].eep_man == 0x1dd) && (ec_slave[slc].eep_id == 0x10305070))
-					 {
-
-							 printf("Found %s at position %d\r\n", ec_slave[slc].name, slc);
-							 printf("Found %x at position %d\r\n", ec_slave[slc].configadr, slc);
-							 ec_slave[slc].PO2SOconfig = &IS620Nsetup;
-				   }
-				 }
-       }
+				for(slc = 1; slc <= ec_slavecount; slc++)
+				{
+					//汇川伺服
+					if((ec_slave[slc].eep_man == 0x1dd) && (ec_slave[slc].eep_id == 0x10305070))
+					{
+						printf("Found %s at position %d\r\n", ec_slave[slc].name, slc);
+						printf("Found %x at position %d\r\n", ec_slave[slc].configadr, slc);
+						ec_slave[slc].PO2SOconfig = &IS620Nsetup;
+					}
+				}
+			}
 
 			ec_configdc();
 
 			ec_config_map(&IOmap);
 
 			ec_dcsync0(1, TRUE, SYNC0TIME, 0); // SYNC0 on slave 1
-			printf("segments : %d : %d %d %d %d\n",ec_group[0].nsegments ,ec_group[0].IOsegment[0],ec_group[0].IOsegment[1],ec_group[0].IOsegment[2],ec_group[0].IOsegment[3]);
+			printf("segments : %d : %lu %lu %lu %lu\n",ec_group[0].nsegments ,ec_group[0].IOsegment[0],ec_group[0].IOsegment[1],ec_group[0].IOsegment[2],ec_group[0].IOsegment[3]);
 
 			ec_statecheck(0, EC_STATE_SAFE_OP,  EC_TIMEOUTSTATE);
 
@@ -167,7 +168,7 @@ void ecat_init(void)
 
 		  printf("Request operational state for all slaves\n");
 		  expectedWKC = (ec_group[0].outputsWKC * 2) + ec_group[0].inputsWKC;
-		  printf("Calculated workcounter %d\n", expectedWKC);
+		  printf("Calculated workCounter %d\n", expectedWKC);
 		  ec_slave[0].state = EC_STATE_OPERATIONAL;
 
 			ec_send_processdata();
@@ -217,6 +218,7 @@ void ecat_init(void)
 		printf("No socket connection Excecute as root\r\n");
 	}
 
+	dorun = 1;  // TODO: only for test
 }
 
 
