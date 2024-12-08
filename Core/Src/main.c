@@ -34,6 +34,7 @@
 #include "key.h"
 #include "tcpecho.h"
 #include "udpecho.h"
+#include "global.h"
 
 /* USER CODE END Includes */
 
@@ -110,6 +111,7 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_ETH_Init();
+  MX_TIM14_Init();
   /* USER CODE BEGIN 2 */
 
 //  HAL_TIM_Base_Start_IT(&htim13);
@@ -243,6 +245,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
   if (htim->Instance == TIM13) {
 //	  HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
+  }
+
+  if (htim->Instance == TIM14) {
+	  osSemaphoreRelease(tim14ExpireSemaphore);
+	  HAL_TIM_Base_Stop_IT(htim);
   }
 
   /* USER CODE END Callback 1 */

@@ -30,6 +30,8 @@
 #include <stdio.h>
 #include "oled.h"
 #include "ecatuser.h"
+#include "SV630N.h"
+#include <stdbool.h>
 
 /* USER CODE END Includes */
 
@@ -53,6 +55,16 @@
 
 osMemoryPoolId_t rxBufferPool;
 
+osSemaphoreId_t tim14ExpireSemaphore;
+const osSemaphoreAttr_t tim14ExpireSemaphore_attributes = {
+		.name = "tim14ExpireSemaphore",
+		.attr_bits = 0
+};
+
+static char IOmap[128];
+int usedMemory;
+
+
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -68,6 +80,13 @@ const osThreadAttr_t buttonTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for ethercatTask */
+osThreadId_t ethercatTaskHandle;
+const osThreadAttr_t ethercatTask_attributes = {
+  .name = "ethercatTask",
+  .stack_size = 2048 * 4,
+  .priority = (osPriority_t) osPriorityRealtime,
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -76,6 +95,7 @@ const osThreadAttr_t buttonTask_attributes = {
 
 void StartDefaultTask(void *argument);
 void StartButtonTask(void *argument);
+void StartEthercatTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -95,6 +115,7 @@ void MX_FREERTOS_Init(void) {
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
+	tim14ExpireSemaphore = osSemaphoreNew(1, 0, &tim14ExpireSemaphore_attributes);
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* USER CODE BEGIN RTOS_TIMERS */
@@ -111,6 +132,9 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of buttonTask */
   buttonTaskHandle = osThreadNew(StartButtonTask, NULL, &buttonTask_attributes);
+
+  /* creation of ethercatTask */
+//  ethercatTaskHandle = osThreadNew(StartEthercatTask, NULL, &ethercatTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -137,8 +161,11 @@ void StartDefaultTask(void *argument)
 	assert_param(rxBufferPool != NULL);
 
 	MX_ETH_Init(); // 这个初始化过程必须在线程中进行，否则会出现一些地址错误，原因暂不明，猜测是跟 RTOS 的内存管理相关
+	osDelay(5000);
 
-	ecat_init();
+	ethercatTaskHandle = osThreadNew(StartEthercatTask, NULL, &ethercatTask_attributes);
+
+//	ecat_init();
 
 //	ETH_BufferTypeDef TxBuffer;
 //	ethernet_frame_t frame;
@@ -157,7 +184,7 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	  ecat_loop();
+//	  ecat_loop();
 //	  HAL_StatusTypeDef status;
 //	  HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
 //	  status = HAL_ETH_Transmit_IT( & heth, & TxConfig);
@@ -193,6 +220,67 @@ void StartButtonTask(void *argument)
     osDelay(1);
   }
   /* USER CODE END StartButtonTask */
+}
+
+/* USER CODE BEGIN Header_StartEthercatTask */
+/**
+* @brief Function implementing the ethercatTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartEthercatTask */
+void StartEthercatTask(void *argument)
+{
+  /* USER CODE BEGIN StartEthercatTask */
+	bool isRunning = FALSE;
+
+	if (ec_init("eth0") > 0) {
+		if (ec_config_init(FALSE) > 0) {
+			oledLogClear();
+			oledLog("Slaves found.");
+			printf("%d slaves found and configured.\n",ec_slavecount);
+
+			/* link slave specific setup to preop->safeop hook */
+			for(int i = 1; i <= ec_slavecount; i++) {
+				if (ec_slave[i].eep_man == SV630N_MANUFATURER_ID && ec_slave[i].eep_id == SV630N_PRODUCT_ID) {
+					ec_slave[i].PO2SOconfig = SV630N_Setup;  // 设置回调函数
+				}
+			}
+
+			// config IOmap
+			usedMemory = ec_config_map(&IOmap);
+			if (usedMemory > sizeof(IOmap)) {
+				oledLogClear();
+				oledLog("Need more IOmap space.");
+				Error_Handler(); // 需要增大 IOmap 的空间
+			}
+
+			/* send one valid process data to make outputs in slaves happy*/
+			ec_send_processdata();
+			ec_receive_processdata(EC_TIMEOUTRET);
+
+			ec_writestate(0);
+			/* wait for all slaves to reach OP state */
+			uint16 state = ec_statecheck(0, EC_STATE_OPERATIONAL,  EC_TIMEOUTSTATE);
+			if (state == EC_STATE_OPERATIONAL) {
+				isRunning = TRUE;
+				oledLogClear();
+				oledLog("Slaves are running.");
+			}
+		} else {
+			oledLogClear();
+			oledLog("No slave found");
+		}
+	}
+  /* Infinite loop */
+  for(;;)
+  {
+	  if (isRunning) {
+		  ec_send_processdata();
+		  ec_receive_processdata(EC_TIMEOUTRET);
+	  }
+  }
+  /* USER CODE END StartEthercatTask */
 }
 
 /* Private application code --------------------------------------------------*/
@@ -247,8 +335,18 @@ void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef * heth)
 	HAL_StatusTypeDef status;
 	status = HAL_ETH_ReadData(heth, (void**)&pBuff);
 	if (status != HAL_OK) {
-		Error_Handler();
+		uint32_t err = HAL_ETH_GetError(heth);
+		if (err & HAL_ETH_ERROR_DMA) {
+			err = HAL_ETH_GetDMAError(heth);
+			Error_Handler();
+		} else if (err & HAL_ETH_ERROR_MAC) {
+			err = HAL_ETH_GetMACError(heth);
+			Error_Handler();
+		} else if (err & HAL_ETH_ERROR_PARAM) {
+			Error_Handler();
+		}
 	}
+
 	if (pBuff) {
 		oledLogClear();
 		oledLog("Received: ");

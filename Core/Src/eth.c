@@ -24,7 +24,7 @@
 ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
 ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
 
-ETH_TxPacketConfigTypeDef TxConfig;
+ETH_TxPacketConfig TxConfig;
 
 /* USER CODE BEGIN 0 */
 
