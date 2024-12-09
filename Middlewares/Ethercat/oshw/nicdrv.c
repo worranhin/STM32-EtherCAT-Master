@@ -45,6 +45,7 @@
 //#include "lwip/sockets.h"
 #include "cmsis_os2.h"
 #include "eth.h"
+#include "global.h"
 
 
 #ifndef MAX
@@ -284,7 +285,10 @@ int ecx_outframe(ecx_portt *port, int idx, int stacknumber)
    config.TxBuffer = &txBuffer;
 
    (*stack->rxbufstat)[idx] = EC_BUF_TX;
+   osSemaphoreAcquire(ethTxCpltSemaphore, EC_TIMEOUTSAFE);
    if (HAL_ETH_Transmit_IT(&heth, &config) == HAL_OK) {
+	   // TODO: 这边需要保护 txbuf 直到传输完成
+	   osMutexAcquire(ecTxBuffMutex, EC_TIMEOUTSAFE);
 	   return 1;
    } else {
 	   return 0;
@@ -298,7 +302,7 @@ int ecx_outframe(ecx_portt *port, int idx, int stacknumber)
 //   return retval;
 }
 
-/** Transmit buffer over socket (non blocking). Not Implement!
+/** Transmit buffer over socket (non blocking).
  * @param[in] port        = port context struct
  * @param[in] idx = index in tx buffer array
  * @return socket send result
@@ -523,7 +527,15 @@ static int ecx_waitinframe_red(ecx_portt *port, int idx, osal_timert timer)
       /* only read frame if not already in */
       if (wkc <= EC_NOFRAME)
       {
-         wkc  = ecx_inframe(port, idx, 0);
+    	  ec_timet stopTime = timer.stop_time;
+    	  ec_timet diffTime = {0};
+    	  ec_timet currentTime = osal_current_time();
+    	  osal_time_diff(&currentTime, &stopTime, &diffTime);
+    	  uint32_t timeout = diffTime.sec * 1000 + diffTime.usec / 1000; // 单位: ms
+    	  osStatus status = osSemaphoreAcquire(ethRxCpltSemaphore, timeout);
+    	  if (status == osOK) {
+    		  wkc  = ecx_inframe(port, idx, 0);
+    	  }
       }
       /* only try secondary if in redundant mode */
       if (port->redstate != ECT_RED_NONE)

@@ -19,7 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
-#include "eth.h"
+#include "dma.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -61,7 +61,10 @@ char strHead[200] = "Count: ";
 char strCount[100];
 KEY key2;
 char appBuff[100];
+
+uint32_t secCount50000 = 0; // 距系统运行已经过 50000 秒的次数
 //static int count = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -106,15 +109,14 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_UART4_Init();
+  MX_DMA_Init();
   MX_TIM13_Init();
-  MX_TIM2_Init();
-  MX_TIM3_Init();
-  MX_ETH_Init();
   MX_TIM14_Init();
   /* USER CODE BEGIN 2 */
 
 //  HAL_TIM_Base_Start_IT(&htim13);
+  MX_TIM3_Init();
+  MX_TIM2_Init();
 
   // 初始化 OLED
 //  delay_init(168);
@@ -146,8 +148,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	  MX_LWIP_Process();
-
 	  // 更新 Key
 //	  Key_RefreshState(&key2);
 //
@@ -223,6 +223,17 @@ static uint8_t getStateOfKey2(void) {
 		return 0;
 }
 
+uint32_t getCurrentSecond(void) {
+	uint32_t sec = 0;
+	sec += secCount50000 * 50000;
+	sec += htim3.Instance->CNT;
+	return sec;
+}
+
+uint32_t getCurrentUs(void) {
+	return htim2.Instance->CNT;
+}
+
 /* USER CODE END 4 */
 
 /**
@@ -242,6 +253,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
+
+  if (htim->Instance == TIM3) {
+	  secCount50000 += 1;
+  }
 
   if (htim->Instance == TIM13) {
 //	  HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);

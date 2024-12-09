@@ -9,6 +9,7 @@
 /* User Include */
 //#include "tim.h"
 #include "cmsis_os.h"
+#include "main.h"
 
 
 #define  timercmp(a, b, CMP)                                \
@@ -97,15 +98,19 @@ int osal_usleep(uint32 usec)
  */
 ec_timet osal_current_time (void)
 {
-	osKernelLock(); // 保证一致性
-	uint32_t tick = osKernelGetTickCount();
-	uint32_t freq = osKernelGetTickFreq();
+	osKernelLock();
+	uint32_t sec = getCurrentSecond();
+	uint32_t us = getCurrentUs();
+	ec_timet time = {sec, us};
 	osKernelUnlock();
-	uint32_t second = tick / freq;
-	uint32_t us = (tick - second * freq) * USECS_PER_SEC / freq;
-
-	ec_timet time = {second, us};
 	return time;
+
+//	osKernelLock(); // 保证一致性
+//	uint32_t tick = osKernelGetTickCount();
+//	uint32_t freq = osKernelGetTickFreq();
+//	osKernelUnlock();
+//	uint32_t second = tick / freq;
+//	uint32_t us = (tick - second * freq) * USECS_PER_SEC / freq;
 }
 
 void osal_time_diff(ec_timet *start, ec_timet *end, ec_timet *diff)

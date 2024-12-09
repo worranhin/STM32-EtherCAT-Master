@@ -54,6 +54,9 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 
+uint32_t getCurrentSecond(void);
+uint32_t getCurrentUs(void);
+
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

@@ -28,9 +28,9 @@ typedef enum {
 } ProbeModeBits;
 
 typedef struct PACKED {
-  uint16 controlword;   // 6040h
-  int32 targetPostion;  // 607Ah
-  uint16 probeFunction; // 60B8h
+  uint16 controlword;   // 6040h 控制字
+  int32 targetPostion;  // 607Ah 目标位置
+  uint16 probeFunction; // 60B8h 探针功能配置
   uint32 forceDoOutput; // 60FEh.01 物理输出,
 } SV630N_Outputs_1701;  // 1701h PDO 映射配置
 
@@ -44,11 +44,11 @@ typedef struct PACKED {
   int32 probe1RisingPositionFeedback; // 60BAh 探针1上升沿位置值
   int32 probe2RisingPositionFeedback; // 60BCh 探针2上升沿位置值
   uint32 DIStatus;                     // 60FDh DI状态
-} SV630N_Iutputs_1B01;                 // 1B01h
+} SV630N_Inputs_1B01;                 // 1B01h
 
 // 默认的 PDO 映射配置
-#define SV630N_Outputs SV630N_Outputs_1701;
-#define SV630N_Inputs SV630N_Iutputs_1B01;
+#define SV630N_Outputs SV630N_Outputs_1701
+#define SV630N_Inputs SV630N_Inputs_1B01
 
 int SV630N_Setup(uint16 slave);
 
