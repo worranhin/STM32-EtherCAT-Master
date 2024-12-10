@@ -19,6 +19,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "eth.h"
+#include "global.h"
 #include "string.h"
 
 ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
@@ -27,6 +28,10 @@ ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptor
 ETH_TxPacketConfig TxConfig;
 
 /* USER CODE BEGIN 0 */
+
+#include "oled.h"
+
+static uint8_t txBuffer[ETH_TX_BUF_SIZE];
 
 int32_t ETH_PHY_INTERFACE_Init(void);
 int32_t ETH_PHY_INTERFACE_DeInit (void);
@@ -284,6 +289,30 @@ void ETH_ConstructEthernetFrame(ethernet_frame_t * frame, uint8_t * dest_mac, ui
   memcpy(frame -> type, type, 2);
   // Copy the payload data
   memcpy(frame -> payload, payload, payload_len);
+}
+
+/**
+ * @brief 使用 ETH 发送一个 packet, 若当前 ETH 繁忙, 会等待直到可用
+ * @param pBuff: 要发送的数据指针
+ * @param len: 要发送的数据长度
+ * @retval 0=成功, -1=失败
+ */
+int ethSend(void *pBuff, int len) {
+  osSemaphoreAcquire(ethTxCpltSemaphore, osWaitForever);
+  memcpy(txBuffer, pBuff, len);
+  ETH_BufferTypeDef txBufferDef = {0};
+  txBufferDef.buffer = txBuffer;
+  txBufferDef.len = len;
+  txBufferDef.next = NULL;
+  TxConfig.TxBuffer = &txBufferDef;
+
+  if (HAL_ETH_Transmit_IT(&heth, &TxConfig) == HAL_OK) {
+	  oledLog(" ethTxOK ");
+    return 0;
+  } else {
+
+    return -1;
+  }
 }
 
 /* USER CODE END 1 */

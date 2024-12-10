@@ -469,7 +469,10 @@ void HAL_ETH_RxLinkCallback(void ** pStart, void ** pEnd, uint8_t * buff, uint16
 void HAL_ETH_TxCpltCallback(ETH_HandleTypeDef * heth)
 {
 	osSemaphoreRelease(ethTxCpltSemaphore);
-	osMutexRelease(ecTxBuffMutex);
+//	oledLog("Eth tx cplt ");
+	// const char* str = "Eth tx cplt.";
+	// HAL_UART_Transmit(&huart4, (uint8_t*)str, strlen(str), 100);
+//	osMutexRelease(ecTxBuffMutex);
 //  printf("Packet Transmitted successfully!\r\n");
 //  fflush(0);
 //	oledLogClear();

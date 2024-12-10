@@ -60,6 +60,7 @@ void MX_ETH_Init(void);
 
 void ETH_StartLink(void);
 void ETH_ConstructEthernetFrame(ethernet_frame_t * frame, uint8_t * dest_mac, uint8_t * src_mac, uint8_t * type, uint8_t * payload, uint16_t payload_len);
+int ethSend(void* pBuff, int len);
 
 /* USER CODE END Prototypes */
 
