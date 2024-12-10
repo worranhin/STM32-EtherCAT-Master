@@ -513,7 +513,10 @@ void HAL_ETH_TxCpltCallback(ETH_HandleTypeDef *heth)
 void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth)
 {
     ETH_BufferTypeDef *pBuff;
-    HAL_ETH_ReadData(heth, &pBuff);
+    HAL_StatusTypeDef status = HAL_ETH_ReadData(heth, (void**)&pBuff);
+    if (status != HAL_OK) {
+    	while(1);
+    }
     ethRxListPush(pBuff);
     osSemaphoreRelease(ethRxCpltSemaphore);
     //	ETH_BufferTypeDef * pBuff;

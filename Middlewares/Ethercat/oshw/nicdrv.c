@@ -348,17 +348,19 @@ static int ecx_recvpkt(ecx_portt* port, int stacknumber) {
   }
 
   ec_stackT* stack = &(port->stack);
-  ETH_AppBuff* pAppBuff = NULL;
+//  ETH_AppBuff* pAppBuff = NULL;
   uint8_t* buf = NULL;
   unsigned int len = 0;
 
-  len = ethReceive(&buf);
+  len = ethReceive((void**)&buf);
   if (buf != NULL && len > 0) {
     memset(*stack->tempbuf, 0, sizeof(*stack->tempbuf));
     memcpy(*stack->tempbuf, buf, len);
     ethRxBufferFree(buf);
     return len;
   }
+
+  return 0;
 
   // 	HAL_StatusTypeDef status = HAL_ETH_ReadData(&heth, (void**)
   // (&pAppBuff)); 	if (status != HAL_OK) { 		uint32_t err =
@@ -512,10 +514,10 @@ static int ecx_waitinframe_red(ecx_portt* port, int idx, osal_timert timer) {
       osal_time_diff(&currentTime, &stopTime, &diffTime);
       uint32_t timeout =
           diffTime.sec * 1000 + diffTime.usec / 1000;  // 单位: ms
-      osStatus status = osSemaphoreAcquire(ethRxCpltSemaphore, timeout);
-      if (status == osOK) {
+//      osStatus status = osSemaphoreAcquire(ethRxCpltSemaphore, timeout);
+//      if (status == osOK) {
         wkc = ecx_inframe(port, idx, 0);
-      }
+//      }
     }
     /* only try secondary if in redundant mode */
     if (port->redstate != ECT_RED_NONE) {

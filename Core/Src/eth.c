@@ -352,7 +352,7 @@ int ethRxListPush(ETH_BufferTypeDef *pBuff)
         rxList.len++;
     }
 
-    while (temp = rxList.tail->next)
+    while ((temp = rxList.tail->next))
     {
         rxList.tail = temp;
         rxList.len++;
@@ -401,7 +401,7 @@ int ethRxListPop(ETH_BufferTypeDef **pBuff)
 void ethRxBufferFree(void *pBuff)
 {
     void *p = pBuff - offsetof(ETH_AppBuff, buffer);
-    osMemoryPoolFree(rxBufferPool, pBuff);
+    osMemoryPoolFree(rxBufferPool, p);
 }
 
 /* USER CODE END 1 */
