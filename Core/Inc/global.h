@@ -15,5 +15,6 @@ extern osSemaphoreId_t tim14ExpireSemaphore;
 extern osMutexId_t ecTxBuffMutex;
 extern osSemaphoreId_t ethTxCpltSemaphore;
 extern osSemaphoreId_t ethRxCpltSemaphore;
+extern osMemoryPoolId_t rxBufferPool;
 
 #endif /* INC_GLOBAL_H_ */
