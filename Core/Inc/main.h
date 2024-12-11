@@ -33,6 +33,7 @@ extern "C" {
 /* USER CODE BEGIN Includes */
 
 #include "global.h"
+#include <stdio.h>
 
 /* USER CODE END Includes */
 

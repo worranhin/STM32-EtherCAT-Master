@@ -223,6 +223,43 @@ uint32_t getCurrentUs(void) {
 	return htim2.Instance->CNT;
 }
 
+/**
+  * 函数功能: 重定向c库函数printf到DEBUG_USARTx
+  * 输入参数: 无
+  * 返 回 值: 无
+  * 说    明：无
+  */
+// int fputc(int ch, FILE *f)
+// {
+//   UNUSED(f);
+//   HAL_UART_Transmit(&huart4, (uint8_t *)&ch, 1, 0xffff);
+//   return ch;
+// }
+
+/**
+  * 函数功能: 重定向c库函数getchar,scanf到DEBUG_USARTx
+  * 输入参数: 无
+  * 返 回 值: 无
+  * 说    明：无
+  */
+// int fgetc(FILE * f)
+// {
+//   UNUSED(f);
+//   uint8_t ch = 0;
+//   HAL_UART_Receive(&huart4, &ch, 1, 0xffff);
+//   return ch;
+// }
+
+int __io_putchar(int ch) {
+  HAL_UART_Transmit(&huart4, (uint8_t *)&ch, 1, 0xffff);
+  return ch;
+}
+int __io_getchar(void) {
+  uint8_t ch = 0;
+  HAL_UART_Receive(&huart4, &ch, 1, 0xffff);
+  return ch;
+}
+
 /* USER CODE END 4 */
 
 /**

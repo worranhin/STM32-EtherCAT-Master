@@ -12,8 +12,10 @@
 
 // in freertos.c
 // extern osSemaphoreId_t tim14ExpireSemaphore;
-extern osMutexId_t ecTxBuffMutex;
+extern osMutexId_t ethTxBuffMutex;
 extern osMutexId_t oledMutex;
+extern osMutexId_t ethRxListMutex;
+extern osMutexId_t ethTxConfigMutex;
 extern osSemaphoreId_t ethTxCpltSemaphore;
 extern osSemaphoreId_t ethRxCpltSemaphore;
 extern osMemoryPoolId_t rxBufferPool;

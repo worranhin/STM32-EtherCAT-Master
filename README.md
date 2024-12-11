@@ -49,3 +49,28 @@
 | 3      | 帧头校验                 | 0xB9    |
 | 4~7    | 目标位置(4=高位, 7=低位) | int32_t |
 | 8      | 数据校验和               | uint8_t |
+
+## 线程间共享资源使用情况
+
+### ethTxBuffMutex
+
+文件 | 函数 | 操作
+--- | --- | ---
+eth.c | ethSend() | Acquire
+freertos.c | HAL_ETH_TxCpltCallback | Release
+
+### ethRxCpltSemaphore
+
+文件 | 函数 | 操作
+--- | --- | ---
+nicdrv.c | ecx_waitinframe() | Acquire
+nicdrv.c | ecx_srconfirm() | Acquire
+freertos.c | HAL_ETH_RxCpltCallback() | Release
+freertos.c | HAL_ETH_ErrorCallback() | Release
+
+### rxBufferPool
+
+文件 | 函数 | 操作
+--- | --- | ---
+freertos.c | HAL_ETH_RxAllocateCallback() | Alloc
+eth.c | ethRxBufferFree() | Free

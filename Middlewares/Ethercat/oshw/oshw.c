@@ -62,4 +62,5 @@ ec_adaptert * oshw_find_adapters(void)
 void oshw_free_adapters(ec_adaptert * adapter)
 {
 	   /* TODO if needed */
+      UNUSED(adapter);
 }

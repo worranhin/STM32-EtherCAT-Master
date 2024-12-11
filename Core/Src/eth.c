@@ -294,23 +294,32 @@ void ETH_ConstructEthernetFrame(ethernet_frame_t *frame, uint8_t *dest_mac, uint
  */
 int ethSend(void *pBuff, int len)
 {
+    int retval = -1;
     osSemaphoreAcquire(ethTxCpltSemaphore, osWaitForever);
     memcpy(txBuffer, pBuff, len);
     ETH_BufferTypeDef txBufferDef = {0};
     txBufferDef.buffer = txBuffer;
     txBufferDef.len = len;
     txBufferDef.next = NULL;
-    TxConfig.TxBuffer = &txBufferDef;
 
+    osMutexAcquire(ethTxConfigMutex, osWaitForever);
+    TxConfig.TxBuffer = &txBufferDef;
     if (HAL_ETH_Transmit_IT(&heth, &TxConfig) == HAL_OK)
     {
-        //	  oledLog(" ethTxOK ");
-        return 0;
+        printf("Eth tx start.\r\n");
+        for (uint32_t i = 0; i < txBufferDef.len; i++) {
+            printf("%02x ", ((uint8_t*)pBuff)[i]);
+        }
+        printf("\r\n");
+        retval = 0;
     }
     else
     {
-        return -1;
+        retval = -1;
     }
+
+    osMutexRelease(ethTxConfigMutex);
+    return retval;
 }
 
 /**
@@ -321,7 +330,6 @@ int ethSend(void *pBuff, int len)
  */
 int ethReceive(void **pPacket)
 {
-    osSemaphoreAcquire(ethRxCpltSemaphore, osWaitForever);
     ETH_BufferTypeDef *pBuff;
     if (ethRxListPop(&pBuff) != 0)
     {
@@ -341,6 +349,7 @@ int ethRxListPush(ETH_BufferTypeDef *pBuff)
         return -1;
     }
 
+    osMutexAcquire(ethRxListMutex, osWaitForever);
     if (rxList.len == 0)
     {
         rxList.head = pBuff;
@@ -360,6 +369,8 @@ int ethRxListPush(ETH_BufferTypeDef *pBuff)
         rxList.len++;
     }
 
+    osMutexRelease(ethRxListMutex);
+
     return 0;
 }
 
@@ -371,8 +382,10 @@ int ethRxListPush(ETH_BufferTypeDef *pBuff)
  */
 int ethRxListPop(ETH_BufferTypeDef **pBuff)
 {
+    osMutexAcquire(ethRxListMutex, osWaitForever);
     if (rxList.len == 0)
     {
+        osMutexRelease(ethRxListMutex);
         return -1;
     }
 
@@ -391,6 +404,7 @@ int ethRxListPop(ETH_BufferTypeDef **pBuff)
         rxList.head = rxList.head->next;
         rxList.len--;
     }
+    osMutexRelease(ethRxListMutex);
 
     return 0;
 }

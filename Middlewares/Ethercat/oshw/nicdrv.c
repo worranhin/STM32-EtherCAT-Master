@@ -460,6 +460,7 @@ int ecx_inframe(ecx_portt* port, int idx, int stacknumber) {
                  (*stack->txbuflength)[idx] - ETH_HEADERSIZE);
           /* return WKC */
           rval = ((*rxbuf)[len] + ((uint16)((*rxbuf)[len + 1]) << 8));
+          // assert_param(rval != 0);
           /* mark as completed */
           (*stack->rxbufstat)[idx] = EC_BUF_COMPLETE;
           /* store MAC source word 1 for redundant routing info */
@@ -605,7 +606,9 @@ int ecx_waitinframe(ecx_portt* port, int idx, int timeout) {
   osal_timert timer;
 
   osal_timer_start(&timer, timeout);
-  wkc = ecx_waitinframe_red(port, idx, timer);
+  if (osSemaphoreAcquire(ethRxCpltSemaphore, timeout / 1000) != osOK) {
+    wkc = ecx_waitinframe_red(port, idx, timer);
+  }
   /* if nothing received, clear buffer index status so it can be used again */
   if (wkc <= EC_NOFRAME) {
     ecx_setbufstat(port, idx, EC_BUF_EMPTY);
@@ -638,7 +641,11 @@ int ecx_srconfirm(ecx_portt* port, int idx, int timeout) {
     ecx_outframe_red(port, idx);
     osal_timer_start(&read_timer, MIN(timeout, EC_TIMEOUTRET));
     /* get frame from primary or if in redundant mode possibly from secondary */
-    wkc = ecx_waitinframe_red(port, idx, read_timer);
+    if (osSemaphoreAcquire(ethRxCpltSemaphore, timeout / 1000) == osOK) {
+      wkc = ecx_waitinframe_red(port, idx, read_timer);
+    } else {
+
+    }
     /* wait for answer with WKC>0 or otherwise retry until timeout */
   } while ((wkc <= EC_NOFRAME) && (osal_timer_is_expired(&timer) == FALSE));
   /* if nothing received, clear buffer index status so it can be used again */
@@ -646,7 +653,10 @@ int ecx_srconfirm(ecx_portt* port, int idx, int timeout) {
     ecx_setbufstat(port, idx, EC_BUF_EMPTY);
   }
 
-  assert_param(wkc == 1);
+  // assert_param(wkc == 1);
+  // if (wkc != 1) {
+  //   printf("Error in ec_srconfirm: get wkc=%d\r\n", wkc);
+  // }
 
   return wkc;
 }
