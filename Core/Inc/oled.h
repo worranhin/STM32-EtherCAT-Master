@@ -25,6 +25,7 @@
 #ifndef __OLED_H
 #define __OLED_H
 
+#include "main.h"
 #include "stdlib.h"
 #include "sys.h"
 
@@ -119,4 +120,5 @@ void oled_show_string(uint8_t x, uint8_t y, const char *p, uint8_t size);       
 /* User Function */
 void oledLog(const char* msg);
 void oledLogClear(void);
+void oledLogBufferPut(char c);
 #endif

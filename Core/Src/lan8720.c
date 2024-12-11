@@ -142,7 +142,7 @@ int32_t  LAN8720_RegisterBusIO(lan8720_Object_t *pObj, lan8720_IOCtx_t *ioctx)
 
      do {
     	 pObj->IO.ReadReg(addr, LAN8720_PHYSCSR, &regvalue);
-     } while((regvalue & LAN8720_PHYSCSR_AUTONEGO_DONE) != LAN8720_PHYSCSR_AUTONEGO_DONE); // 等待 auto-negotiation 完成
+      } while((regvalue & LAN8720_PHYSCSR_AUTONEGO_DONE) != LAN8720_PHYSCSR_AUTONEGO_DONE); // 等待 auto-negotiation 完成
 
      /* if device address is matched */
      if(status == LAN8720_STATUS_OK)

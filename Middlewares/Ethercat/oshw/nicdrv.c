@@ -106,39 +106,44 @@ void ec_setupheader(void* p) {
  * @return >0 if succeeded
  */
 int ecx_setupnic(ecx_portt* port, const char* ifname, int secondary) {
-  int i;
-  int* psock;
-  //	struct timeval timeout;
-  //	int r, rval, ifindex;
-  //	struct ifreq ifr;
+    UNUSED(ifname);
+    int i;
+    int *psock;
+    //	struct timeval timeout;
+    //	int r, rval, ifindex;
+    //	struct ifreq ifr;
 
-  //   port->getindex_mutex = mtx_create();
-  //   port->tx_mutex = mtx_create();
-  //   port->rx_mutex = mtx_create();
+    //   port->getindex_mutex = mtx_create();
+    //   port->tx_mutex = mtx_create();
+    //   port->rx_mutex = mtx_create();
 
-  //   rVal = bfin_EMAC_init((uint8_t *)priMAC);
-  //   if (rVal != 0)
-  //     return 0;
+    //   rVal = bfin_EMAC_init((uint8_t *)priMAC);
+    //   if (rVal != 0)
+    //     return 0;
 
-  if (secondary) {
-    /* secondary port struct available? */
-    if (port->redport) {
-      /* when using secondary socket it is automatically a redundant setup */
-      psock = &(port->redport->sockhandle);
-      *psock = -1;
-      port->redstate = ECT_RED_DOUBLE;
-      port->redport->stack.sock = &(port->redport->sockhandle);
-      port->redport->stack.txbuf = &(port->txbuf);
-      port->redport->stack.txbuflength = &(port->txbuflength);
-      port->redport->stack.tempbuf = &(port->redport->tempinbuf);
-      port->redport->stack.rxbuf = &(port->redport->rxbuf);
-      port->redport->stack.rxbufstat = &(port->redport->rxbufstat);
-      port->redport->stack.rxsa = &(port->redport->rxsa);
-      ecx_clear_rxbufstat(&(port->redport->rxbufstat[0]));
-    } else {
-      /* fail */
-      return 0;
-    }
+    if (secondary)
+    {
+        /* secondary port struct available? */
+        if (port->redport)
+        {
+            /* when using secondary socket it is automatically a redundant setup */
+            psock = &(port->redport->sockhandle);
+            *psock = -1;
+            port->redstate = ECT_RED_DOUBLE;
+            port->redport->stack.sock = &(port->redport->sockhandle);
+            port->redport->stack.txbuf = &(port->txbuf);
+            port->redport->stack.txbuflength = &(port->txbuflength);
+            port->redport->stack.tempbuf = &(port->redport->tempinbuf);
+            port->redport->stack.rxbuf = &(port->redport->rxbuf);
+            port->redport->stack.rxbufstat = &(port->redport->rxbufstat);
+            port->redport->stack.rxsa = &(port->redport->rxsa);
+            ecx_clear_rxbufstat(&(port->redport->rxbufstat[0]));
+        }
+        else
+        {
+            /* fail */
+            return 0;
+        }
   } else {
     // initialize mutex
     osMutexAttr_t mtxAttr = {0};
@@ -182,8 +187,9 @@ int ecx_setupnic(ecx_portt* port, const char* ifname, int secondary) {
  * @return 0
  */
 int ecx_closenic(ecx_portt* port) {
-  //	ETH_Stop();
-  return 0;
+    UNUSED(port);
+    //	ETH_Stop();
+    return 0;
 }
 
 /** Set rx buffer status.
@@ -508,14 +514,14 @@ static int ecx_waitinframe_red(ecx_portt* port, int idx, osal_timert timer) {
   do {
     /* only read frame if not already in */
     if (wkc <= EC_NOFRAME) {
-      ec_timet stopTime = timer.stop_time;
-      ec_timet diffTime = {0};
-      ec_timet currentTime = osal_current_time();
-      osal_time_diff(&currentTime, &stopTime, &diffTime);
-      uint32_t timeout =
-          diffTime.sec * 1000 + diffTime.usec / 1000;  // 单位: ms
-//      osStatus status = osSemaphoreAcquire(ethRxCpltSemaphore, timeout);
-//      if (status == osOK) {
+        // ec_timet stopTime = timer.stop_time;
+        // ec_timet diffTime = {0};
+        // ec_timet currentTime = osal_current_time();
+        // osal_time_diff(&currentTime, &stopTime, &diffTime);
+        // uint32_t timeout =
+        //     diffTime.sec * 1000 + diffTime.usec / 1000;  // 单位: ms
+        //      osStatus status = osSemaphoreAcquire(ethRxCpltSemaphore, timeout);
+        //      if (status == osOK) {
         wkc = ecx_inframe(port, idx, 0);
 //      }
     }

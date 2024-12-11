@@ -129,7 +129,7 @@ void osal_time_diff(ec_timet *start, ec_timet *end, ec_timet *diff)
  * 创建一个线程
  * @retval 成功返回 1，否则返回 0
  */
-int osal_thread_create(void *thandle, int stacksize, void *func, void *param)
+int osal_thread_create(void *thandle, int stacksize, osThreadFunc_t func, void *param)
 {
 	osThreadAttr_t attr = {
 			.name = "worker",
@@ -145,7 +145,7 @@ int osal_thread_create(void *thandle, int stacksize, void *func, void *param)
 	return 1;
 }
 
-int osal_thread_create_rt(void *thandle, int stacksize, void *func, void *param)
+int osal_thread_create_rt(void *thandle, int stacksize, osThreadFunc_t func, void *param)
 {
 	osThreadAttr_t attr = {
 			.name = "worker_rt",

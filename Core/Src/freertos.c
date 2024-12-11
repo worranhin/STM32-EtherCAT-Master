@@ -59,14 +59,19 @@ osMemoryPoolId_t rxBufferPool;
 
 osMutexId_t ecTxBuffMutex;
 osMutexAttr_t ecTxBuffMutex_attributes = {
-		.name = "ecTxBuff"
+		.name = "ecTxBuffMutex"
 };
 
-osSemaphoreId_t tim14ExpireSemaphore;
-const osSemaphoreAttr_t tim14ExpireSemaphore_attributes = {
-		.name = "tim14ExpireSemaphore",
-		.attr_bits = 0
+osMutexId_t oledMutex;
+osMutexAttr_t oledMutex_attributes = {
+		.name = "oledMutex"
 };
+
+// osSemaphoreId_t tim14ExpireSemaphore;
+// const osSemaphoreAttr_t tim14ExpireSemaphore_attributes = {
+// 		.name = "tim14ExpireSemaphore",
+// 		.attr_bits = 0
+// };
 
 osSemaphoreId_t ethTxCpltSemaphore;
 const osSemaphoreAttr_t ethTxCpltSemaphore_attributes = {
@@ -110,9 +115,9 @@ SV630N_Inputs *pdoInputs;
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
-    .name = "defaultTask",
-    .stack_size = 512 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "defaultTask",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -129,47 +134,51 @@ void StartDefaultTask(void *argument);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
-void MX_FREERTOS_Init(void)
-{
-    /* USER CODE BEGIN Init */
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
+void MX_FREERTOS_Init(void) {
+  /* USER CODE BEGIN Init */
 
-    /* USER CODE END Init */
+  oledLogClear();
+  oledLog("Starting FreeRTOS");
 
-    /* USER CODE BEGIN RTOS_MUTEX */
+  /* USER CODE END Init */
+
+  /* USER CODE BEGIN RTOS_MUTEX */
     /* add mutexes, ... */
     ecTxBuffMutex = osMutexNew(&ecTxBuffMutex_attributes);
-    /* USER CODE END RTOS_MUTEX */
+    oledMutex = osMutexNew(&oledMutex_attributes);
+  /* USER CODE END RTOS_MUTEX */
 
-    /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
     /* add semaphores, ... */
-    tim14ExpireSemaphore = osSemaphoreNew(1, 0, &tim14ExpireSemaphore_attributes);
+    // tim14ExpireSemaphore = osSemaphoreNew(1, 0, &tim14ExpireSemaphore_attributes);
     ethTxCpltSemaphore = osSemaphoreNew(1, 1, &ethTxCpltSemaphore_attributes);
     ethRxCpltSemaphore = osSemaphoreNew(4, 0, &ethRxCpltSemaphore_attributes);
-    /* USER CODE END RTOS_SEMAPHORES */
+  /* USER CODE END RTOS_SEMAPHORES */
 
-    /* USER CODE BEGIN RTOS_TIMERS */
+  /* USER CODE BEGIN RTOS_TIMERS */
     /* start timers, add new ones, ... */
-    /* USER CODE END RTOS_TIMERS */
+  /* USER CODE END RTOS_TIMERS */
 
-    /* USER CODE BEGIN RTOS_QUEUES */
+  /* USER CODE BEGIN RTOS_QUEUES */
     /* add queues, ... */
-    /* USER CODE END RTOS_QUEUES */
+  /* USER CODE END RTOS_QUEUES */
 
-    /* Create the thread(s) */
-    /* creation of defaultTask */
-    defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  /* Create the thread(s) */
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-    /* USER CODE BEGIN RTOS_THREADS */
+  /* USER CODE BEGIN RTOS_THREADS */
     /* add threads, ... */
-    /* USER CODE END RTOS_THREADS */
+  /* USER CODE END RTOS_THREADS */
 
-    /* USER CODE BEGIN RTOS_EVENTS */
+  /* USER CODE BEGIN RTOS_EVENTS */
     /* add events, ... */
-    /* USER CODE END RTOS_EVENTS */
+  /* USER CODE END RTOS_EVENTS */
+
 }
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -181,7 +190,8 @@ void MX_FREERTOS_Init(void)
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void *argument)
 {
-    /* USER CODE BEGIN StartDefaultTask */
+  /* USER CODE BEGIN StartDefaultTask */
+    UNUSED(argument);
 
     rxBufferPool = osMemoryPoolNew(ETH_RXBUFNB, sizeof(ETH_AppBuff), NULL);
     assert_param(rxBufferPool != NULL);
@@ -196,46 +206,16 @@ void StartDefaultTask(void *argument)
     //&usartTask_attributes);
     ethercatTaskHandle = osThreadNew(StartEthercatTask, NULL, &ethercatTask_attributes);
 
+    oledLogClear();
+    oledLog("Initialization done.");
+
     osThreadExit();
-
-    //	ecat_init();
-
-    //	ETH_BufferTypeDef TxBuffer;
-    //	ethernet_frame_t frame;
-    //	uint8_t dest_mac[] = {0x00, 0x80, 0xE1, 0x00, 0x00, 0x10}; //
-    // Destination MAC Address 	uint8_t src_mac[] = {0x00, 0x80, 0xE1, 0x00, 0x00,
-    // 0x00};  // Source MAC Address 	uint8_t type[] = {0x08,0x00 }; // EtherType
-    // set to IPV4 packet 	uint8_t payload[] =
-    //{0x54,0x65,0x73,0x74,0x69,0x6e,0x67,0x20,0x45,0x74,0x68,0x65,0x72,0x6e,0x65,0x74,0x20,0x6f,0x6e,0x20,0x53,0x54,0x4d,0x33,0x32};
-    //	uint16_t payload_len = sizeof(payload);
-    //
-    //	ETH_ConstructEthernetFrame(&frame, dest_mac, src_mac, type, payload,
-    // payload_len); 	TxBuffer.buffer = (uint8_t *)&frame; 	TxBuffer.len =
-    // sizeof(dest_mac) + sizeof(src_mac) + sizeof(type) + payload_len;
-    //	TxBuffer.next = NULL;
-    //	TxConfig.TxBuffer = &TxBuffer;
 
     /* Infinite loop */
     for (;;)
     {
-        //	  ecat_loop();
-        //	  HAL_StatusTypeDef status;
-        //	  HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
-        //	  status = HAL_ETH_Transmit_IT( & heth, & TxConfig);
-        //	  if (status != HAL_OK) {
-        //		  uint32_t error = HAL_ETH_GetError(&heth);
-        //		  printf("%lx", error);
-        //		  if (error & HAL_ETH_ERROR_DMA) {
-        //			  uint32_t dmaError = HAL_ETH_GetDMAError(&heth);
-        //			  printf("DMA error: %lx", dmaError);
-        //			  Error_Handler();
-        //		  }
-        //	  } else {
-        //		  HAL_ETH_ReleaseTxPacket( & heth);
-        //	  }
-        //	  osDelay(1000);
     }
-    /* USER CODE END StartDefaultTask */
+  /* USER CODE END StartDefaultTask */
 }
 
 /* Private application code --------------------------------------------------*/
@@ -278,6 +258,7 @@ bool checkSum(const uint8_t *pData, int len, uint8_t target)
  */
 void StartUsartTask(void *argument)
 {
+    UNUSED(argument);
     const uint32_t rxTimeout = 100;
     const uint32_t txTimeout = 100;
     //	char txData[] = "Hello world!";
@@ -353,17 +334,22 @@ void StartUsartTask(void *argument)
 
 void StartLedTask(void *argument)
 {
+    UNUSED(argument);
     for (;;)
     {
-        HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
+        HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
         osDelay(1000);
     }
 }
 
 void StartEthercatTask(void *argument)
 {
+    UNUSED(argument);
     bool isRunning = FALSE;
     int SV630N_idx = 0;
+
+    oledLogClear();
+    oledLog("SOEM initializing.");
 
     if (ec_init("eth0") > 0)
     {
@@ -385,7 +371,7 @@ void StartEthercatTask(void *argument)
 
             // config IOmap
             usedMemory = ec_config_map(&IOmap);
-            if (usedMemory > sizeof(IOmap))
+            if ((unsigned int)usedMemory > sizeof(IOmap))
             {
                 oledLogClear();
                 oledLog("Need more IOmap space.");
@@ -500,6 +486,7 @@ void HAL_ETH_RxLinkCallback(void **pStart, void **pEnd, uint8_t *buff, uint16_t 
 
 void HAL_ETH_TxCpltCallback(ETH_HandleTypeDef *heth)
 {
+    UNUSED(heth);
     osSemaphoreRelease(ethTxCpltSemaphore);
     //	oledLog("Eth tx cplt ");
     // const char* str = "Eth tx cplt.";
@@ -554,3 +541,4 @@ void HAL_ETH_ErrorCallback(ETH_HandleTypeDef *heth)
 }
 
 /* USER CODE END Application */
+

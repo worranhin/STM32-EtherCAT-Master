@@ -32,6 +32,8 @@ extern "C" {
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include "global.h"
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -60,6 +62,14 @@ uint32_t getCurrentUs(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define LED1_Pin GPIO_PIN_0
+#define LED1_GPIO_Port GPIOA
+#define LED2_Pin GPIO_PIN_3
+#define LED2_GPIO_Port GPIOA
+#define LED3_Pin GPIO_PIN_4
+#define LED3_GPIO_Port GPIOA
+#define LED4_Pin GPIO_PIN_6
+#define LED4_GPIO_Port GPIOA
 #define LED5_Pin GPIO_PIN_8
 #define LED5_GPIO_Port GPIOA
 #define KEY1_Pin GPIO_PIN_10

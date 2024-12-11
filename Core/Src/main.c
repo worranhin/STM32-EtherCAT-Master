@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "crc.h"
 #include "dma.h"
 #include "tim.h"
 #include "usart.h"
@@ -111,20 +112,25 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_TIM13_Init();
-//  MX_TIM14_Init();
+  MX_CRC_Init();
   /* USER CODE BEGIN 2 */
 
 //  HAL_TIM_Base_Start_IT(&htim13);
   MX_TIM3_Init();
   MX_TIM2_Init();
 
+  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, LED_OFF);
+  HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, LED_OFF);
+  HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, LED_OFF);
+  HAL_GPIO_WritePin(LED4_GPIO_Port, LED4_Pin, LED_OFF);
+  HAL_GPIO_WritePin(LED5_GPIO_Port, LED5_Pin, LED_OFF);
+
   // 初始化 OLED
 //  delay_init(168);
   oled_init();
 
   oled_show_string(0, 0, "SCUT", 12);
-  oled_show_string(0, 20, "Hello world!", 12);
-  oled_show_string(0, 40, "Count: 0", 12);
+  oled_show_string(0, 20, "Oled has been initialized", 12);
   oled_refresh_gram();
 
   KeyCreate(&key2, getStateOfKey2);
@@ -148,20 +154,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  // 更新 Key
-//	  Key_RefreshState(&key2);
-//
-//	  if(Key_AccessTimes(&key2, KEY_ACCESS_READ) != 0) {
-//		  // 更新 OLED
-//		  strncpy(strHead, "Count: ", sizeof(strHead) - 1);
-//		  snprintf(strCount, sizeof(strCount), "%d", ++count);
-//		  strcat(strHead, strCount);
-//		  oled_show_string(0, 40, strHead, 12);
-//		  oled_refresh_gram();
-//
-//		  Key_AccessTimes(&key2, KEY_ACCESS_WRITE_CLEAR);
-//	  }
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -258,14 +250,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	  secCount50000 += 1;
   }
 
-  if (htim->Instance == TIM13) {
-//	  HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
-  }
-
-  if (htim->Instance == TIM14) {
-	  osSemaphoreRelease(tim14ExpireSemaphore);
-	  HAL_TIM_Base_Stop_IT(htim);
-  }
+  // if (htim->Instance == TIM13) {
+	//   HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
+  // }
 
   /* USER CODE END Callback 1 */
 }
@@ -298,7 +285,8 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-	while(1);
+     printf("Wrong parameters value: file %s on line %lu\r\n", file, line);
+	// while(1);
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

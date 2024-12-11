@@ -19,7 +19,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "eth.h"
-#include "global.h"
 #include "string.h"
 
 ETH_DMADescTypeDef DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
@@ -51,6 +50,7 @@ ETH_HandleTypeDef heth;
 /* ETH init function */
 void MX_ETH_Init(void)
 {
+
     /* USER CODE BEGIN ETH_Init 0 */
 
     /* USER CODE END ETH_Init 0 */
@@ -79,27 +79,28 @@ void MX_ETH_Init(void)
 
     if (HAL_ETH_Init(&heth) != HAL_OK)
     {
-        Error_Handler();
-    }
+          Error_Handler();
+  }
 
-    memset(&TxConfig, 0, sizeof(ETH_TxPacketConfig));
-    TxConfig.Attributes = ETH_TX_PACKETS_FEATURES_CSUM | ETH_TX_PACKETS_FEATURES_CRCPAD;
-    TxConfig.ChecksumCtrl = ETH_CHECKSUM_IPHDR_PAYLOAD_INSERT_PHDR_CALC;
-    TxConfig.CRCPadCtrl = ETH_CRC_PAD_INSERT;
-    /* USER CODE BEGIN ETH_Init 2 */
+  memset(&TxConfig, 0, sizeof(ETH_TxPacketConfig));
+  TxConfig.Attributes = ETH_TX_PACKETS_FEATURES_CSUM | ETH_TX_PACKETS_FEATURES_CRCPAD;
+  TxConfig.ChecksumCtrl = ETH_CHECKSUM_IPHDR_PAYLOAD_INSERT_PHDR_CALC;
+  TxConfig.CRCPadCtrl = ETH_CRC_PAD_INSERT;
+  /* USER CODE BEGIN ETH_Init 2 */
 
-    /* Set PHY IO functions */
-    LAN8720_RegisterBusIO(&lan8720, &lan8720_IOCtx);
-    /* Initialize the LAN8742 ETH PHY */
-    LAN8720_Init(&lan8720);
-    /* Initialize link speed negotiation and start Ethernet peripheral */
-    ETH_StartLink();
+  /* Set PHY IO functions */
+  LAN8720_RegisterBusIO(&lan8720, &lan8720_IOCtx);
+  /* Initialize the LAN8742 ETH PHY */
+  LAN8720_Init(&lan8720);
+  /* Initialize link speed negotiation and start Ethernet peripheral */
+  ETH_StartLink();
 
     /* USER CODE END ETH_Init 2 */
 }
 
 void HAL_ETH_MspInit(ETH_HandleTypeDef *ethHandle)
 {
+
     GPIO_InitTypeDef GPIO_InitStruct = {0};
     if (ethHandle->Instance == ETH)
     {
@@ -155,6 +156,7 @@ void HAL_ETH_MspInit(ETH_HandleTypeDef *ethHandle)
 
 void HAL_ETH_MspDeInit(ETH_HandleTypeDef *ethHandle)
 {
+
     if (ethHandle->Instance == ETH)
     {
         /* USER CODE BEGIN ETH_MspDeInit 0 */
@@ -400,7 +402,7 @@ int ethRxListPop(ETH_BufferTypeDef **pBuff)
  */
 void ethRxBufferFree(void *pBuff)
 {
-    void *p = pBuff - offsetof(ETH_AppBuff, buffer);
+    void *p = (uint8_t *)pBuff - offsetof(ETH_AppBuff, buffer);
     osMemoryPoolFree(rxBufferPool, p);
 }
 
