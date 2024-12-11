@@ -60,7 +60,6 @@
 /* USER CODE BEGIN PV */
 char strHead[200] = "Count: ";
 char strCount[100];
-KEY key2;
 char appBuff[100];
 
 uint32_t secCount50000 = 0; // 距系统运行已经过 50000 秒的次数
@@ -72,7 +71,7 @@ uint32_t secCount50000 = 0; // 距系统运行已经过 50000 秒的次数
 void SystemClock_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
-static uint8_t getStateOfKey2(void);
+// static uint8_t getStateOfKey2(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -132,8 +131,6 @@ int main(void)
   oled_show_string(0, 0, "SCUT", 12);
   oled_show_string(0, 20, "Oled has been initialized", 12);
   oled_refresh_gram();
-
-  KeyCreate(&key2, getStateOfKey2);
 
   NVIC_SetPriorityGrouping( 0 );
 
@@ -208,12 +205,12 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-static uint8_t getStateOfKey2(void) {
-	if(HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_RESET)
-		return 1;
-	else
-		return 0;
-}
+// static uint8_t getStateOfKey2(void) {
+// 	if(HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_RESET)
+// 		return 1;
+// 	else
+// 		return 0;
+// }
 
 uint32_t getCurrentSecond(void) {
 	uint32_t sec = 0;
