@@ -184,6 +184,7 @@ void StartEthSendTask(void *argument);
 void StartEthercatTask(void *argument);
 static uint8_t addSum(const uint8_t *pData, int len);
 static bool checkSum(const uint8_t *pData, int len, uint8_t target);
+void switchState();
 
 /* USER CODE END FunctionPrototypes */
 
@@ -423,14 +424,14 @@ void StartEthReceiveTask(void *argument)
             appBuff = (ETH_AppBuff *)pBuffDef - offsetof(ETH_AppBuff, AppBuff);
 
 #ifdef DEBUG_MESSAGE
-            uint32_t len = appBuff->AppBuff.len;
-            uint8_t *pdata = appBuff->AppBuff.buffer;
-            printf("Received:\n");
-            for (uint32_t i = 0; i < len; i++)
-            {
-                printf("%02x ", *pdata++);
-            }
-            printf("\n");
+            // uint32_t len = appBuff->AppBuff.len;
+            // uint8_t *pdata = appBuff->AppBuff.buffer;
+            // printf("Received:\n");
+            // for (uint32_t i = 0; i < len; i++)
+            // {
+            //     printf("%02x ", *pdata++);
+            // }
+            // printf("\n");
 #endif // DEBUG_MESSAGE
 
             if (osMessageQueuePut(ethRxQueue, &appBuff, 0, EthTimeout) == osErrorTimeout)
@@ -446,6 +447,7 @@ void StartEthReceiveTask(void *argument)
 
 void StartEthercatTask(void *argument)
 {
+#define SYNC0TIME 10000000
     UNUSED(argument);
     bool isRunning = FALSE;
     int SV630N_idx = 0;
@@ -461,13 +463,10 @@ void StartEthercatTask(void *argument)
         if (ec_config_init(FALSE) > 0)
         {
             // convert ec_slavecount to string
-            char ec_slavecount_str[10];
-            sprintf(ec_slavecount_str, "%d", ec_slavecount);
+            char ec_slavecount_str[20];
+            sprintf(ec_slavecount_str, "Slaves found: %d", ec_slavecount);
             oledLogClear();
-            oledLog("Slaves found: ");
             oledLog(ec_slavecount_str);
-
-            printf("%lu slaves found and configured.%lu \r\n",ec_slave[1].eep_man,ec_slave[1].eep_id);
 
             /* link slave specific setup to preop->safeop hook */
             for (int i = 1; i <= ec_slavecount; i++)
@@ -476,11 +475,17 @@ void StartEthercatTask(void *argument)
                 {
                     ec_slave[i].PO2SOconfig = SV630N_Setup; // 设置回调函数
                     SV630N_idx = i;
+                    DEBUG_PRINT("SV630N found and configured.\r\n");
                 }
+            }
+
+            if (ec_configdc()) {
+                DEBUG_PRINT("DC configured.\r\n");
             }
 
             // config IOmap
             usedMemory = ec_config_map(&IOmap);
+            DEBUG_PRINT("IOmap size: %d\r\n", usedMemory);
             if ((unsigned int)usedMemory > sizeof(IOmap))
             {
                 oledLogClear();
@@ -488,10 +493,41 @@ void StartEthercatTask(void *argument)
                 Error_Handler(); // 需要增大 IOmap 的空间
             }
 
+            ec_dcsync0(SV630N_idx, TRUE, SYNC0TIME, 3000);
+            DEBUG_PRINT("DC sync complete.\r\n");
+
+			uint16_t ecState = ec_statecheck(0, EC_STATE_SAFE_OP,  EC_TIMEOUTSTATE);
+            DEBUG_PRINT("slave state: %u\r\n", ecState); // 确认进入 SAFE_OP 状态
+
+            // // 请求进入 OPERATIONAL 状态
+            uint16_t expectedWKC = (ec_group[0].outputsWKC * 2) + ec_group[0].inputsWKC;
+            printf("Calculated workcounter %d\n", expectedWKC);
+
+            ec_slave[0].state = EC_STATE_OPERATIONAL;
+            ec_send_processdata();
+            ec_receive_processdata(EC_TIMEOUTRET3);
+            
+            ec_slave[0].state = EC_STATE_OPERATIONAL;
+            ec_writestate(0);
+            ec_readstate();
+
+            int check = 200;
+            do
+            {
+                ec_slave[0].state = EC_STATE_OPERATIONAL;
+                ec_send_processdata();
+                ec_receive_processdata(EC_TIMEOUTRET);
+                ec_statecheck(0, EC_STATE_OPERATIONAL, 50000);
+                // DEBUG_PRINT("slave state: %u\r\n", ecState);
+            } while (check-- && (ec_slave[0].state != EC_STATE_OPERATIONAL));
+            ecState = ec_statecheck(0, EC_STATE_OPERATIONAL, 50000);
+            DEBUG_PRINT("slave state: %u\r\n", ecState);
+
             if (SV630N_idx)
             {
                 pdoOutputs = (SV630N_Outputs *)ec_slave[SV630N_idx].outputs;
                 pdoInputs = (SV630N_Inputs *)ec_slave[SV630N_idx].inputs;
+                DEBUG_PRINT("PDO set up.\r\n");
             }
 
             /* send one valid process data to make outputs in slaves happy*/
@@ -501,36 +537,39 @@ void StartEthercatTask(void *argument)
             ec_writestate(0);
             /* wait for all slaves to reach OP state */
             uint16 state = ec_statecheck(0, EC_STATE_OPERATIONAL, EC_TIMEOUTSTATE);
+            DEBUG_PRINT("slave state: %u\r\n", state);
             if (state == EC_STATE_OPERATIONAL)
             {
+                DEBUG_PRINT("Get in operational state.\r\n");
+                isRunning = 1;
                 // CiA402 状态切换过程
-                while ((pdoInputs->statusWord & 0x03df) == 0x0250)
-                {
-                    pdoOutputs->controlword |= 0x0006;
-                    ec_send_processdata();
-                    ec_receive_processdata(EC_TIMEOUTRET);
-                }
+                // while ((pdoInputs->statusWord & 0x03df) == 0x0250)
+                // {
+                //     pdoOutputs->controlword |= 0x0006;
+                //     ec_send_processdata();
+                //     ec_receive_processdata(EC_TIMEOUTRET);
+                // }
 
-                while ((pdoInputs->statusWord & 0x03ff) == 0x0231)
-                {
-                    pdoOutputs->controlword |= 0x0007;
-                    ec_send_processdata();
-                    ec_receive_processdata(EC_TIMEOUTRET);
-                }
+                // while ((pdoInputs->statusWord & 0x03ff) == 0x0231)
+                // {
+                //     pdoOutputs->controlword |= 0x0007;
+                //     ec_send_processdata();
+                //     ec_receive_processdata(EC_TIMEOUTRET);
+                // }
 
-                while ((pdoInputs->statusWord & 0x03ff) == 0x0233)
-                {
-                    pdoOutputs->controlword |= 0x000F;
-                    ec_send_processdata();
-                    ec_receive_processdata(EC_TIMEOUTRET);
-                }
+                // while ((pdoInputs->statusWord & 0x03ff) == 0x0233)
+                // {
+                //     pdoOutputs->controlword |= 0x000F;
+                //     ec_send_processdata();
+                //     ec_receive_processdata(EC_TIMEOUTRET);
+                // }
 
-                if ((pdoInputs->statusWord & 0x03ff) == 0x0237)
-                {
-                    isRunning = TRUE;
-                    oledLogClear();
-                    oledLog("Slaves are running.");
-                }
+                // if ((pdoInputs->statusWord & 0x03ff) == 0x0237)
+                // {
+                //     isRunning = TRUE;
+                //     oledLogClear();
+                //     oledLog("Slaves are running.");
+                // }
             }
         }
         else
@@ -544,6 +583,7 @@ void StartEthercatTask(void *argument)
     {
         if (isRunning)
         {
+            switchState();
             ec_send_processdata();
             ec_receive_processdata(EC_TIMEOUTRET);
         }
@@ -584,6 +624,59 @@ bool checkSum(const uint8_t *pData, int len, uint8_t target)
     return (sum == target);
 }
 
+void switchState() {
+    // CiA402 状态切换过程
+    switch (pdoInputs->statusWord & 0x03ff)
+    {
+    case 0x0250:
+    case 0x0270:
+        pdoOutputs->controlword = 0x0006;
+        break;
+
+    case 0x0231:
+        pdoOutputs->controlword = 0x0007;
+        break;
+
+    case 0x0233:
+        pdoOutputs->controlword = 0x000F;
+        break;
+
+    case 0x0237:
+        pdoOutputs->controlword = 0x000F;
+        break;
+    
+    default:
+        break;
+    }
+    // while ((pdoInputs->statusWord & 0x03df) == 0x0250)
+    // {
+    //     pdoOutputs->controlword |= 0x0006;
+    //     ec_send_processdata();
+    //     ec_receive_processdata(EC_TIMEOUTRET);
+    // }
+
+    // while ((pdoInputs->statusWord & 0x03ff) == 0x0231)
+    // {
+    //     pdoOutputs->controlword |= 0x0007;
+    //     ec_send_processdata();
+    //     ec_receive_processdata(EC_TIMEOUTRET);
+    // }
+
+    // while ((pdoInputs->statusWord & 0x03ff) == 0x0233)
+    // {
+    //     pdoOutputs->controlword |= 0x000F;
+    //     ec_send_processdata();
+    //     ec_receive_processdata(EC_TIMEOUTRET);
+    // }
+
+    // if ((pdoInputs->statusWord & 0x03ff) == 0x0237)
+    // {
+    //     isRunning = TRUE;
+    //     oledLogClear();
+    //     oledLog("Slaves are running.");
+    // }
+}
+
 /* 回调函数 */
 
 void HAL_ETH_RxAllocateCallback(uint8_t **buff)
@@ -596,13 +689,14 @@ void HAL_ETH_RxAllocateCallback(uint8_t **buff)
         p->next = NULL;
         p->len = 0;
         p->buffer = *buff;
-        uint32_t left = osMemoryPoolGetSpace(rxBufferPool);
-        printf("Eth rx alloc. left=%lu\r\n", left);
+        osMemoryPoolGetSpace(rxBufferPool);
+        // printf("Eth rx alloc. left=%lu\r\n", left);
     }
     else
     {
         *buff = NULL;
         uint32_t left = osMemoryPoolGetSpace(rxBufferPool);
+        DEBUG_PRINT("Eth rx alloc failed. left=%lu\r\n", left);
         printf("Eth rx alloc failed. left=%lu\r\n", left);
     }
 }
@@ -627,7 +721,7 @@ void HAL_ETH_RxLinkCallback(void **pStart, void **pEnd, uint8_t *buff, uint16_t 
     }
     *ppEnd = p;
 
-    printf("Eth rx link, len=%d\r\n", Length);
+    // printf("Eth rx link, len=%d\r\n", Length);
 }
 
 /**
@@ -673,7 +767,7 @@ void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth)
     //     }
     //     printf("\r\n");
     // }
-    printf("RxCplt\n");
+    // printf("RxCplt\n");
     osSemaphoreRelease(ethRxCpltSemaphore);
 }
 

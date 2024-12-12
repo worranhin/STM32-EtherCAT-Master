@@ -50,6 +50,9 @@ extern "C" {
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
 
+#define DEBUG_PRINT printf
+// #define DEBUG_PRINT(...) do {} while (0)
+
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/

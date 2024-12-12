@@ -368,13 +368,13 @@ void ethSendProcess(ETH_AppBuff* appBuff, uint32_t timeout) {
     assert_param(halStat == HAL_OK);
 
 #ifdef DEBUG_MESSAGE
-    uint32_t len = appBuff->AppBuff.len;
-    uint8_t* pdata = appBuff->AppBuff.buffer;
-    printf("Transmit:\n");
-    for (uint32_t i = 0; i < len; i++) {
-        printf("%02x ", *pdata++);
-    }
-    printf("\n");
+    // uint32_t len = appBuff->AppBuff.len;
+    // uint8_t* pdata = appBuff->AppBuff.buffer;
+    // printf("Transmit:\n");
+    // for (uint32_t i = 0; i < len; i++) {
+    //     printf("%02x ", *pdata++);
+    // }
+    // printf("\n");
 #endif // DEBUG_MESSAGE
 
     osStat = osMemoryPoolFree(txBufferPool, appBuff);
