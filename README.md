@@ -74,3 +74,7 @@ freertos.c | HAL_ETH_ErrorCallback() | Release
 --- | --- | ---
 freertos.c | HAL_ETH_RxAllocateCallback() | Alloc
 eth.c | ethRxBufferFree() | Free
+
+### ethTxQueue
+
+内容物：`ETH_AppBuff*`  

@@ -16,8 +16,12 @@ extern osMutexId_t ethTxBuffMutex;
 extern osMutexId_t oledMutex;
 extern osMutexId_t ethRxListMutex;
 extern osMutexId_t ethTxConfigMutex;
+extern osSemaphoreId_t ethTxReqSemaphore;
 extern osSemaphoreId_t ethTxCpltSemaphore;
 extern osSemaphoreId_t ethRxCpltSemaphore;
 extern osMemoryPoolId_t rxBufferPool;
+extern osMemoryPoolId_t txBufferPool;
+extern osMessageQueueId_t ethRxQueue;
+extern osMessageQueueId_t ethTxQueue;
 
 #endif /* INC_GLOBAL_H_ */

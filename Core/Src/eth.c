@@ -287,7 +287,7 @@ void ETH_ConstructEthernetFrame(ethernet_frame_t *frame, uint8_t *dest_mac, uint
 }
 
 /**
- * @brief 使用 ETH 发送一个 packet, 若当前 ETH 繁忙, 会等待直到可用
+ * @brief 使用 ETH 发送一个 packet, 若当前 ETH 繁忙, 会等待直到可用 (blocking)
  * @param pBuff: 要发送的数据指针
  * @param len: 要发送的数据长度
  * @retval 0=成功, -1=失败
@@ -323,6 +323,52 @@ int ethSend(void *pBuff, int len)
 }
 
 /**
+ * @brief 对 ETH Send 线程发送一个 Send 请求，会将待发送的数据复制到内部缓存中
+ * 
+ * @param pBuff 指向待发送的数据
+ * @param len 数据大小
+ * @param timeout 超时时间, 0=none blocking
+ * @return int 0=成功, -1=失败
+ */
+int ethSendRequest(void *pBuff, uint32_t len, uint32_t timeout) {
+    ETH_AppBuff* appBuff = osMemoryPoolAlloc(txBufferPool, timeout);
+    // appBuff->buffer
+    if (appBuff) {
+        memcpy(appBuff->buffer, pBuff, len);
+        appBuff->AppBuff.buffer = appBuff->buffer;
+        appBuff->AppBuff.len = len;
+        appBuff->AppBuff.next = NULL;
+        if (osMessageQueuePut(ethTxQueue, &appBuff, 0, timeout) == osOK) {
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
+/**
+ * @brief 供 ethSendThread 调用的阻塞发送函数, polling 模式
+ * 
+ * @param appBuff 
+ * @param timeout 
+ */
+void ethSendProcess(ETH_AppBuff* appBuff, uint32_t timeout) {
+    osStatus_t osStat;
+    HAL_StatusTypeDef halStat;
+    osStat = osMutexAcquire(ethTxConfigMutex, timeout);
+    assert_param(osStat == osOK);
+    TxConfig.TxBuffer = &appBuff->AppBuff;
+    halStat = HAL_ETH_Transmit(&heth, &TxConfig, timeout);
+    assert_param(halStat == HAL_OK);
+    halStat = HAL_ETH_ReleaseTxPacket(&heth);
+    assert_param(halStat == HAL_OK);
+    osStat = osMemoryPoolFree(txBufferPool, appBuff);
+    assert_param(osStat == osOK);
+    osStat = osMutexRelease(ethTxConfigMutex);
+    assert_param(osStat == osOK);
+}
+
+/**
  * @brief 接收数据
  *
  * @param pPacket 用于接收 packet 的指针,将被设置为指向 packet
@@ -338,6 +384,21 @@ int ethReceive(void **pPacket)
 
     *pPacket = pBuff->buffer;
     return pBuff->len;
+}
+
+int ethReceiveRequest(void* pBuffer, uint32_t timeout) {
+    ETH_AppBuff* appBuff = NULL;
+    int len = -1;
+    osMessageQueueGet(ethRxQueue, &appBuff, NULL, timeout);
+    if (appBuff != NULL) {
+        ETH_BufferTypeDef* pBuffDef = &appBuff->AppBuff;
+        len = pBuffDef->len;
+        if (len > 0) 
+            memcpy(pBuffer, pBuffDef->buffer, pBuffDef->len);
+        osMemoryPoolFree(rxBufferPool, appBuff);
+    }
+
+    return len;
 }
 
 int ethRxListPush(ETH_BufferTypeDef *pBuff)

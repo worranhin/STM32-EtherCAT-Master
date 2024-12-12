@@ -45,7 +45,8 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-#define RX_BUFFER_POOL_SIZE 20
+#define RX_BUFFER_POOL_SIZE 10
+#define TX_BUFFER_POOL_SIZE 4
 
 /* USER CODE END PD */
 
@@ -57,25 +58,23 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 
-osMemoryPoolId_t rxBufferPool;
-
 osMutexId_t ethTxBuffMutex;
-osMutexAttr_t ecTxBuffMutex_attributes = {
+const osMutexAttr_t ecTxBuffMutex_attributes = {
 		.name = "ethTxBuffMutex"
 };
 
 osMutexId_t oledMutex;
-osMutexAttr_t oledMutex_attributes = {
+const osMutexAttr_t oledMutex_attributes = {
 		.name = "oledMutex"
 };
 
 osMutexId_t ethRxListMutex;
-osMutexAttr_t ethRxListMutex_attributes = {
+const osMutexAttr_t ethRxListMutex_attributes = {
 		.name = "ethRxListMutex"
 };
 
 osMutexId_t ethTxConfigMutex;
-osMutexAttr_t ethTxConfigMutex_attributes = {
+const osMutexAttr_t ethTxConfigMutex_attributes = {
 		.name = "ethTxConfigMutex"
 };
 
@@ -84,6 +83,12 @@ osMutexAttr_t ethTxConfigMutex_attributes = {
 // 		.name = "tim14ExpireSemaphore",
 // 		.attr_bits = 0
 // };
+
+osSemaphoreId_t ethTxReqSemaphore;
+const osSemaphoreAttr_t ethTxReqSemaphore_attributes = {
+		.name = "ethTxReqSemaphore",
+		.attr_bits = 0
+};
 
 osSemaphoreId_t ethTxCpltSemaphore;
 const osSemaphoreAttr_t ethTxCpltSemaphore_attributes = {
@@ -111,6 +116,27 @@ const osThreadAttr_t ledTask_attributes = {
     .priority = (osPriority_t)osPriorityRealtime,
 };
 
+osThreadId_t ethInitTaskHandle;
+const osThreadAttr_t ethInitTask_attributes = {
+    .name = "ethInitTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
+};
+
+osThreadId_t ethReceiveTaskHandle;
+const osThreadAttr_t ethReceiveTask_attributes = {
+    .name = "ethReceiveTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityRealtime,
+};
+
+osThreadId_t ethSendTaskHandle;
+const osThreadAttr_t ethSendTask_attributes = {
+    .name = "ethSendTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityRealtime,
+};
+
 osThreadId_t ethercatTaskHandle;
 const osThreadAttr_t ethercatTask_attributes = {
     .name = "ethercatTask",
@@ -132,11 +158,29 @@ const osThreadAttr_t defaultTask_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
 };
 
+osMemoryPoolId_t rxBufferPool;
+osMemoryPoolId_t txBufferPool;
+
+osMessageQueueId_t ethRxQueue;
+const osMessageQueueAttr_t ethRxQueue_attributes = {
+    .name = "ethRxQueue",
+    .attr_bits = 0
+};
+
+osMessageQueueId_t ethTxQueue;
+const osMessageQueueAttr_t ethTxQueue_attributes = {
+    .name = "ethTxQueue",
+    .attr_bits = 0
+};
+
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 
 void StartUsartTask(void *argument);
 void StartLedTask(void *argument);
+void StartEthInitTask(void *argument);
+void StartEthReceiveTask(void *argument);
+void StartEthSendTask(void *argument);
 void StartEthercatTask(void *argument);
 static uint8_t addSum(const uint8_t *pData, int len);
 static bool checkSum(const uint8_t *pData, int len, uint8_t target);
@@ -148,53 +192,56 @@ void StartDefaultTask(void *argument);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
-  * @brief  FreeRTOS initialization
-  * @param  None
-  * @retval None
-  */
-void MX_FREERTOS_Init(void) {
-  /* USER CODE BEGIN Init */
+ * @brief  FreeRTOS initialization
+ * @param  None
+ * @retval None
+ */
+void MX_FREERTOS_Init(void)
+{
+    /* USER CODE BEGIN Init */
 
-  oledLogClear();
-  oledLog("Starting FreeRTOS");
+    oledLogClear();
+    oledLog("Starting FreeRTOS");
 
-  /* USER CODE END Init */
+    /* USER CODE END Init */
 
-  /* USER CODE BEGIN RTOS_MUTEX */
+    /* USER CODE BEGIN RTOS_MUTEX */
     /* add mutexes, ... */
     ethTxBuffMutex = osMutexNew(&ecTxBuffMutex_attributes);
     oledMutex = osMutexNew(&oledMutex_attributes);
     ethRxListMutex = osMutexNew(&ethRxListMutex_attributes);
     ethTxConfigMutex = osMutexNew(&ethTxConfigMutex_attributes);
-  /* USER CODE END RTOS_MUTEX */
+    /* USER CODE END RTOS_MUTEX */
 
-  /* USER CODE BEGIN RTOS_SEMAPHORES */
+    /* USER CODE BEGIN RTOS_SEMAPHORES */
     /* add semaphores, ... */
     // tim14ExpireSemaphore = osSemaphoreNew(1, 0, &tim14ExpireSemaphore_attributes);
+    ethTxReqSemaphore = osSemaphoreNew(1, 0, &ethTxReqSemaphore_attributes);
     ethTxCpltSemaphore = osSemaphoreNew(1, 1, &ethTxCpltSemaphore_attributes);
     ethRxCpltSemaphore = osSemaphoreNew(RX_BUFFER_POOL_SIZE, 0, &ethRxCpltSemaphore_attributes);
-  /* USER CODE END RTOS_SEMAPHORES */
+    /* USER CODE END RTOS_SEMAPHORES */
 
-  /* USER CODE BEGIN RTOS_TIMERS */
+    /* USER CODE BEGIN RTOS_TIMERS */
     /* start timers, add new ones, ... */
-  /* USER CODE END RTOS_TIMERS */
+    /* USER CODE END RTOS_TIMERS */
 
-  /* USER CODE BEGIN RTOS_QUEUES */
+    /* USER CODE BEGIN RTOS_QUEUES */
     /* add queues, ... */
-  /* USER CODE END RTOS_QUEUES */
+    ethRxQueue = osMessageQueueNew(RX_BUFFER_POOL_SIZE, sizeof(ETH_AppBuff*), &ethRxQueue_attributes);
+    ethTxQueue = osMessageQueueNew(TX_BUFFER_POOL_SIZE, sizeof(ETH_AppBuff*), &ethTxQueue_attributes);
+    /* USER CODE END RTOS_QUEUES */
 
-  /* Create the thread(s) */
-  /* creation of defaultTask */
-  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+    /* Create the thread(s) */
+    /* creation of defaultTask */
+    defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-  /* USER CODE BEGIN RTOS_THREADS */
+    /* USER CODE BEGIN RTOS_THREADS */
     /* add threads, ... */
-  /* USER CODE END RTOS_THREADS */
+    /* USER CODE END RTOS_THREADS */
 
-  /* USER CODE BEGIN RTOS_EVENTS */
+    /* USER CODE BEGIN RTOS_EVENTS */
     /* add events, ... */
-  /* USER CODE END RTOS_EVENTS */
-
+    /* USER CODE END RTOS_EVENTS */
 }
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -210,18 +257,19 @@ void StartDefaultTask(void *argument)
     UNUSED(argument);
 
     rxBufferPool = osMemoryPoolNew(RX_BUFFER_POOL_SIZE, sizeof(ETH_AppBuff), NULL);
+    txBufferPool = osMemoryPoolNew(TX_BUFFER_POOL_SIZE, sizeof(ETH_AppBuff), NULL);
     assert_param(rxBufferPool != NULL);
+    assert_param(txBufferPool != NULL);
 
-    MX_ETH_Init(); // 这个初始化过程必须在线程中进行，否则会出现一些地址错误，原因暂不明，猜测是跟
-                   // RTOS 的内存管理相关
     MX_UART4_Init();
     printf("Uart setup done.\n");
     //	osDelay(5000);
 
     ledTaskHandle = osThreadNew(StartLedTask, NULL, &ledTask_attributes);
+    ethInitTaskHandle = osThreadNew(StartEthInitTask, NULL, &ethInitTask_attributes);
     //	usartTaskHandle = osThreadNew(StartUsartTask, NULL,
     //&usartTask_attributes);
-    ethercatTaskHandle = osThreadNew(StartEthercatTask, NULL, &ethercatTask_attributes);
+    
 
     oledLogClear();
     oledLog("Initialization done.");
@@ -328,6 +376,50 @@ void StartLedTask(void *argument)
     {
         HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);
         osDelay(1000);
+    }
+}
+
+void StartEthInitTask(void *argument) 
+{
+    UNUSED(argument);
+    MX_ETH_Init(); // 这个初始化过程必须在线程中进行，否则会出现一些地址错误，原因暂不明，猜测是跟 RTOS 的内存管理相关
+    ethSendTaskHandle = osThreadNew(StartEthSendTask, NULL, &ethSendTask_attributes);
+    ethReceiveTaskHandle = osThreadNew(StartEthReceiveTask, NULL, &ethReceiveTask_attributes);
+    ethercatTaskHandle = osThreadNew(StartEthercatTask, NULL, &ethercatTask_attributes);
+    
+    osThreadExit();
+    for (;;);
+}
+
+void StartEthSendTask(void *argument) {
+    UNUSED(argument);
+
+    ETH_AppBuff *appBuff = NULL;
+
+    for (;;)
+    {
+        // osSemaphoreAcquire(ethTxReqSemaphore, osWaitForever);
+        // osSemaphoreRelease(ethTxCpltSemaphore);
+        osMessageQueueGet(ethTxQueue, &appBuff, NULL, osWaitForever);
+        ethSendProcess(appBuff, EC_TIMEOUTRET);
+    }
+}
+
+void StartEthReceiveTask(void *argument) {
+    UNUSED(argument);
+    ETH_AppBuff *appBuff = NULL;
+    ETH_BufferTypeDef *pBuffDef = NULL;
+    HAL_StatusTypeDef status = HAL_OK;
+
+    for (;;) 
+    {
+        osSemaphoreAcquire(ethRxCpltSemaphore, osWaitForever);
+        status = HAL_ETH_ReadData(&heth, (void **)&pBuffDef);
+        assert_param(status == HAL_OK);
+        if (pBuffDef) {
+            appBuff = (ETH_AppBuff*)pBuffDef - offsetof(ETH_AppBuff, AppBuff);
+            osMessageQueuePut(ethRxQueue, &appBuff, 0, osWaitForever);
+        }
     }
 }
 
@@ -516,6 +608,11 @@ void HAL_ETH_RxLinkCallback(void **pStart, void **pEnd, uint8_t *buff, uint16_t 
     printf("Eth rx link, len=%d\r\n", Length);
 }
 
+/**
+ * @brief ETH 发送完成 ISR，注意 RTOS 的使用
+ * 
+ * @param heth 
+ */
 void HAL_ETH_TxCpltCallback(ETH_HandleTypeDef *heth)
 {
     UNUSED(heth);
@@ -531,49 +628,37 @@ void HAL_ETH_TxCpltCallback(ETH_HandleTypeDef *heth)
     //	oledLogClear();
     //	oledLog("Packet Transmitted successfully! ");
 }
+
+/**
+ * @brief ETH 接收完成中断 ISR
+ * 
+ * @param heth 
+ */
 void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth)
 {
-    ETH_BufferTypeDef *pBuff;
-    HAL_StatusTypeDef status = HAL_ETH_ReadData(heth, (void**)&pBuff);
-    if (status != HAL_OK) {
-    	// while(1);
-    	Error_Handler();
-    }
-    if (pBuff) {
-        ethRxListPush(pBuff);
-        printf("Rx %lu bytes\n", pBuff->len);
-        for (uint32_t i = 0; i < pBuff->len; i++) {
-            printf("%02x ", pBuff->buffer[i]);
-        }
-        printf("\r\n");
-    }
+    UNUSED(heth);
+    // ETH_BufferTypeDef *pBuff;
+    // HAL_StatusTypeDef status = HAL_ETH_ReadData(heth, (void**)&pBuff);  // TODO: 需要将这个过程放到线程中
+    // if (status != HAL_OK) {
+    // 	// while(1);
+    // 	Error_Handler();
+    // }
+    // if (pBuff) {
+    //     ethRxListPush(pBuff);
+    //     printf("Rx %lu bytes\n", pBuff->len);
+    //     for (uint32_t i = 0; i < pBuff->len; i++) {
+    //         printf("%02x ", pBuff->buffer[i]);
+    //     }
+    //     printf("\r\n");
+    // }
     osSemaphoreRelease(ethRxCpltSemaphore);
-    //	ETH_BufferTypeDef * pBuff;
-    //	HAL_StatusTypeDef status;
-    //	status = HAL_ETH_ReadData(heth, (void**)&pBuff);
-    //	if (status != HAL_OK) {
-    //		uint32_t err = HAL_ETH_GetError(heth);
-    //		if (err & HAL_ETH_ERROR_DMA) {
-    //			err = HAL_ETH_GetDMAError(heth);
-    //			Error_Handler();
-    //		} else if (err & HAL_ETH_ERROR_MAC) {
-    //			err = HAL_ETH_GetMACError(heth);
-    //			Error_Handler();
-    //		} else if (err & HAL_ETH_ERROR_PARAM) {
-    //			Error_Handler();
-    //		}
-    //	}
-    //
-    //	if (pBuff && pBuff->len > 0) {
-    //		oledLogClear();
-    //		oledLog("Received: ");
-    //		for (int i = 0; i < pBuff->len; i++) {
-    //			oledLog((char*)(&(pBuff->buffer[i])));
-    //		}
-    //	}
-    //	osMemoryPoolFree(rxBufferPool, pBuff);
 }
 
+/**
+ * @brief ETH 错误 ISR
+ * 
+ * @param heth 
+ */
 void HAL_ETH_ErrorCallback(ETH_HandleTypeDef *heth)
 {
     if ((HAL_ETH_GetDMAError(heth) & ETH_DMASR_RBUS) == ETH_DMASR_RBUS)
