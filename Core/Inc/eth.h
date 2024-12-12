@@ -72,8 +72,10 @@ void ETH_ConstructEthernetFrame(ethernet_frame_t* frame,
                                 uint8_t* payload,
                                 uint16_t payload_len);
 int ethSend(void* pBuff, int len);
+int ethSendRequest(void *pBuff, uint32_t len, uint32_t timeout);
 void ethSendProcess(ETH_AppBuff* appBuff, uint32_t timeout);
 int ethReceive(void** pPacket);
+int ethReceiveRequest(void* pBuffer, uint32_t timeout);
 int ethRxListPush(ETH_BufferTypeDef* pBuff);
 int ethRxListPop(ETH_BufferTypeDef** pBuff);
 void ethRxBufferFree(void* pBuff);

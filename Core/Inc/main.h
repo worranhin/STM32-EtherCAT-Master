@@ -82,6 +82,8 @@ uint32_t getCurrentUs(void);
 
 /* USER CODE BEGIN Private defines */
 
+#define DEBUG_MESSAGE
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

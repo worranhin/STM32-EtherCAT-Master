@@ -260,36 +260,18 @@ int ecx_outframe(ecx_portt* port, int idx, int stacknumber) {
   //   ETH_TxPacketConfigTypeDef config = TxConfig;
 
   (*stack->rxbufstat)[idx] = EC_BUF_TX;
-  if (ethSend((*stack->txbuf)[idx], (*stack->txbuflength)[idx]) == 0) {
+  if (ethSendRequest((*stack->txbuf)[idx], (*stack->txbuflength)[idx], 0) == 0) {
     retval = 1;
   } else {
     retval = 0;
   }
+  // if (ethSend((*stack->txbuf)[idx], (*stack->txbuflength)[idx]) == 0) {
+  //   retval = 1;
+  // } else {
+  //   retval = 0;
+  // }
 
   return retval;
-
-  //   txBuffer.buffer = stack->txbuf[idx];
-  //   txBuffer.buffer = (*stack->txbuf)[idx];
-  //   txBuffer.len = (*stack->txbuflength)[idx];
-  //   txBuffer.next = NULL;
-  //   config.TxBuffer = &txBuffer;
-  //
-  //   (*stack->rxbufstat)[idx] = EC_BUF_TX;
-  //   osSemaphoreAcquire(ethTxCpltSemaphore, EC_TIMEOUTSAFE);
-  //   if (HAL_ETH_Transmit_IT(&heth, &config) == HAL_OK) {
-  //	   // TODO: 这边需要保护 txbuf 直到传输完成
-  //	   osMutexAcquire(ecTxBuffMutex, EC_TIMEOUTSAFE);
-  //	   return 1;
-  //   } else {
-  //	   return 0;
-  //   }
-
-  //   len = (*stack->txbuflength)[idx];
-  //   (*stack->rxbufstat)[idx] = EC_BUF_TX;
-  //   retval = ETH_Write(*stack->txbuf[idx], len);
-  //   HAL_ETH_Transmit_IT(&heth, TxConfig);
-
-  //   return retval;
 }
 
 /** Transmit buffer over socket (non blocking).
@@ -355,38 +337,22 @@ static int ecx_recvpkt(ecx_portt* port, int stacknumber) {
 
   ec_stackT* stack = &(port->stack);
 //  ETH_AppBuff* pAppBuff = NULL;
-  uint8_t* buf = NULL;
-  unsigned int len = 0;
-
-  len = ethReceive((void**)&buf);
-  if (buf != NULL && len > 0) {
-    memset(*stack->tempbuf, 0, sizeof(*stack->tempbuf));
-    memcpy(*stack->tempbuf, buf, len);
-    ethRxBufferFree(buf);
+  // uint8_t* buf = NULL;
+  int len = 0;
+  
+  memset(*stack->tempbuf, 0, sizeof(*stack->tempbuf));
+  len = ethReceiveRequest((*stack->tempbuf), 0);
+  if (len > 0) 
     return len;
-  }
+  else 
+    return 0;
 
-  return 0;
-
-  // 	HAL_StatusTypeDef status = HAL_ETH_ReadData(&heth, (void**)
-  // (&pAppBuff)); 	if (status != HAL_OK) { 		uint32_t err =
-  // HAL_ETH_GetError(&heth); 		if (err & HAL_ETH_ERROR_DMA) { 			err =
-  // HAL_ETH_GetDMAError(&heth); 			uint32_t dmaier = heth.Instance->DMAIER;
-  // //			heth.RxDescList.RxDesc;
-  // 		}
-  // 	return 0;
-  // }
-  // if (pAppBuff != NULL)
-  // {
-  // 	buf = pAppBuff->AppBuff.buffer;
-  // 	len = pAppBuff->AppBuff.len;
-
-  // 	if (buf != NULL && len > 0)
-  // 	{
-  // 		memset(*stack->tempbuf, 0, sizeof(*stack->tempbuf));
-  // 		memcpy(*stack->tempbuf, buf, len);
-  // 		return len;
-  // 	}
+  // len = ethReceive((void**)&buf);
+  // if (buf != NULL && len > 0) {
+  //   memset(*stack->tempbuf, 0, sizeof(*stack->tempbuf));
+  //   memcpy(*stack->tempbuf, buf, len);
+  //   ethRxBufferFree(buf);
+  //   return len;
   // }
 
   // return 0;
@@ -606,9 +572,9 @@ int ecx_waitinframe(ecx_portt* port, int idx, int timeout) {
   osal_timert timer;
 
   osal_timer_start(&timer, timeout);
-  if (osSemaphoreAcquire(ethRxCpltSemaphore, timeout / 1000) != osOK) {
+  // if (osSemaphoreAcquire(ethRxCpltSemaphore, timeout / 1000) != osOK) {
     wkc = ecx_waitinframe_red(port, idx, timer);
-  }
+  // }
   /* if nothing received, clear buffer index status so it can be used again */
   if (wkc <= EC_NOFRAME) {
     ecx_setbufstat(port, idx, EC_BUF_EMPTY);
@@ -641,11 +607,11 @@ int ecx_srconfirm(ecx_portt* port, int idx, int timeout) {
     ecx_outframe_red(port, idx);
     osal_timer_start(&read_timer, MIN(timeout, EC_TIMEOUTRET));
     /* get frame from primary or if in redundant mode possibly from secondary */
-    if (osSemaphoreAcquire(ethRxCpltSemaphore, timeout / 1000) == osOK) {
+    // if (osSemaphoreAcquire(ethRxCpltSemaphore, timeout / 1000) == osOK) {
       wkc = ecx_waitinframe_red(port, idx, read_timer);
-    } else {
+    // } else {
 
-    }
+    // }
     /* wait for answer with WKC>0 or otherwise retry until timeout */
   } while ((wkc <= EC_NOFRAME) && (osal_timer_is_expired(&timer) == FALSE));
   /* if nothing received, clear buffer index status so it can be used again */

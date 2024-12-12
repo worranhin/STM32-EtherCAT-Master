@@ -95,6 +95,10 @@ void MX_ETH_Init(void)
   /* Initialize link speed negotiation and start Ethernet peripheral */
   ETH_StartLink();
 
+#ifdef DEBUG_MESSAGE
+    printf("ETH init cplt\n");
+#endif // DEBUG_MESSAGE
+
     /* USER CODE END ETH_Init 2 */
 }
 
@@ -295,7 +299,7 @@ void ETH_ConstructEthernetFrame(ethernet_frame_t *frame, uint8_t *dest_mac, uint
 int ethSend(void *pBuff, int len)
 {
     int retval = -1;
-    osSemaphoreAcquire(ethTxCpltSemaphore, osWaitForever);
+    // osSemaphoreAcquire(ethTxCpltSemaphore, osWaitForever);
     memcpy(txBuffer, pBuff, len);
     ETH_BufferTypeDef txBufferDef = {0};
     txBufferDef.buffer = txBuffer;
@@ -362,6 +366,17 @@ void ethSendProcess(ETH_AppBuff* appBuff, uint32_t timeout) {
     assert_param(halStat == HAL_OK);
     halStat = HAL_ETH_ReleaseTxPacket(&heth);
     assert_param(halStat == HAL_OK);
+
+#ifdef DEBUG_MESSAGE
+    uint32_t len = appBuff->AppBuff.len;
+    uint8_t* pdata = appBuff->AppBuff.buffer;
+    printf("Transmit:\n");
+    for (uint32_t i = 0; i < len; i++) {
+        printf("%02x ", *pdata++);
+    }
+    printf("\n");
+#endif // DEBUG_MESSAGE
+
     osStat = osMemoryPoolFree(txBufferPool, appBuff);
     assert_param(osStat == osOK);
     osStat = osMutexRelease(ethTxConfigMutex);
@@ -386,6 +401,13 @@ int ethReceive(void **pPacket)
     return pBuff->len;
 }
 
+/**
+ * @brief 对 ETH Receive 线程发送一个 Receive 请求，若成功，将数据复制到 pBuffer 指向的空间中
+ *
+ * @param pBuffer 指向接收 buffer 的指针
+ * @param timeout 超时时间, 0=none blocking
+ * @return int 接收到的数据长度, 若超时或失败返回 -1
+ */
 int ethReceiveRequest(void* pBuffer, uint32_t timeout) {
     ETH_AppBuff* appBuff = NULL;
     int len = -1;

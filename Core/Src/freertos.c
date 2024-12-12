@@ -84,17 +84,17 @@ const osMutexAttr_t ethTxConfigMutex_attributes = {
 // 		.attr_bits = 0
 // };
 
-osSemaphoreId_t ethTxReqSemaphore;
-const osSemaphoreAttr_t ethTxReqSemaphore_attributes = {
-		.name = "ethTxReqSemaphore",
-		.attr_bits = 0
-};
+// osSemaphoreId_t ethTxReqSemaphore;
+// const osSemaphoreAttr_t ethTxReqSemaphore_attributes = {
+// 		.name = "ethTxReqSemaphore",
+// 		.attr_bits = 0
+// };
 
-osSemaphoreId_t ethTxCpltSemaphore;
-const osSemaphoreAttr_t ethTxCpltSemaphore_attributes = {
-		.name = "ethTxCpltSemaphore",
-		.attr_bits = 0
-};
+// osSemaphoreId_t ethTxCpltSemaphore;
+// const osSemaphoreAttr_t ethTxCpltSemaphore_attributes = {
+// 		.name = "ethTxCpltSemaphore",
+// 		.attr_bits = 0
+// };
 
 osSemaphoreId_t ethRxCpltSemaphore;
 const osSemaphoreAttr_t ethRxCpltSemaphore_attributes = {
@@ -216,8 +216,8 @@ void MX_FREERTOS_Init(void)
     /* USER CODE BEGIN RTOS_SEMAPHORES */
     /* add semaphores, ... */
     // tim14ExpireSemaphore = osSemaphoreNew(1, 0, &tim14ExpireSemaphore_attributes);
-    ethTxReqSemaphore = osSemaphoreNew(1, 0, &ethTxReqSemaphore_attributes);
-    ethTxCpltSemaphore = osSemaphoreNew(1, 1, &ethTxCpltSemaphore_attributes);
+    // ethTxReqSemaphore = osSemaphoreNew(1, 0, &ethTxReqSemaphore_attributes);
+    // ethTxCpltSemaphore = osSemaphoreNew(1, 1, &ethTxCpltSemaphore_attributes);
     ethRxCpltSemaphore = osSemaphoreNew(RX_BUFFER_POOL_SIZE, 0, &ethRxCpltSemaphore_attributes);
     /* USER CODE END RTOS_SEMAPHORES */
 
@@ -405,20 +405,41 @@ void StartEthSendTask(void *argument) {
     }
 }
 
-void StartEthReceiveTask(void *argument) {
+void StartEthReceiveTask(void *argument)
+{
+    const unsigned int EthTimeout = 100;
     UNUSED(argument);
     ETH_AppBuff *appBuff = NULL;
     ETH_BufferTypeDef *pBuffDef = NULL;
     HAL_StatusTypeDef status = HAL_OK;
 
-    for (;;) 
+    for (;;)
     {
-        osSemaphoreAcquire(ethRxCpltSemaphore, osWaitForever);
+        osSemaphoreAcquire(ethRxCpltSemaphore, osWaitForever); // 等待 ETH 硬件接收完成通知
         status = HAL_ETH_ReadData(&heth, (void **)&pBuffDef);
         assert_param(status == HAL_OK);
-        if (pBuffDef) {
-            appBuff = (ETH_AppBuff*)pBuffDef - offsetof(ETH_AppBuff, AppBuff);
-            osMessageQueuePut(ethRxQueue, &appBuff, 0, osWaitForever);
+        if (pBuffDef)
+        {
+            appBuff = (ETH_AppBuff *)pBuffDef - offsetof(ETH_AppBuff, AppBuff);
+
+#ifdef DEBUG_MESSAGE
+            uint32_t len = appBuff->AppBuff.len;
+            uint8_t *pdata = appBuff->AppBuff.buffer;
+            printf("Received:\n");
+            for (uint32_t i = 0; i < len; i++)
+            {
+                printf("%02x ", *pdata++);
+            }
+            printf("\n");
+#endif // DEBUG_MESSAGE
+
+            if (osMessageQueuePut(ethRxQueue, &appBuff, 0, EthTimeout) == osErrorTimeout)
+            {
+                ETH_AppBuff *temp = NULL;
+                osMessageQueueGet(ethRxQueue, &temp, NULL, EthTimeout);
+                osMemoryPoolFree(rxBufferPool, temp);
+                osMessageQueuePut(ethRxQueue, &appBuff, 0, EthTimeout);
+            }
         }
     }
 }
@@ -436,6 +457,7 @@ void StartEthercatTask(void *argument)
     {
         oledLogClear();
         oledLog("SOEM configuring.");
+        
         if (ec_config_init(FALSE) > 0)
         {
             // convert ec_slavecount to string
@@ -618,7 +640,7 @@ void HAL_ETH_TxCpltCallback(ETH_HandleTypeDef *heth)
     UNUSED(heth);
     // printf("Eth tx cplt.\r\n");
     // osMutexRelease(ethTxBuffMutex);
-    osSemaphoreRelease(ethTxCpltSemaphore);
+    // osSemaphoreRelease(ethTxCpltSemaphore);
     //	oledLog("Eth tx cplt ");
     // const char* str = "Eth tx cplt.";
     // HAL_UART_Transmit(&huart4, (uint8_t*)str, strlen(str), 100);
@@ -651,6 +673,7 @@ void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth)
     //     }
     //     printf("\r\n");
     // }
+    printf("RxCplt\n");
     osSemaphoreRelease(ethRxCpltSemaphore);
 }
 
