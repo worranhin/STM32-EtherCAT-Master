@@ -58,6 +58,8 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 
+// CMSIS-RTOS Related
+
 osMutexId_t ethTxBuffMutex;
 const osMutexAttr_t ecTxBuffMutex_attributes = {
 		.name = "ethTxBuffMutex"
@@ -144,18 +146,11 @@ const osThreadAttr_t ethercatTask_attributes = {
     .priority = (osPriority_t)osPriorityNormal,
 };
 
-static char IOmap[128];
-int usedMemory;
-SV630N_Outputs *pdoOutputs;
-SV630N_Inputs *pdoInputs;
-
-/* USER CODE END Variables */
-/* Definitions for defaultTask */
-osThreadId_t defaultTaskHandle;
-const osThreadAttr_t defaultTask_attributes = {
-  .name = "defaultTask",
-  .stack_size = 512 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+osThreadId_t ethercatRtTaskHandle;
+const osThreadAttr_t ethercatRtTask_attributes = {
+    .name = "ethercatRtTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityRealtime,
 };
 
 osMemoryPoolId_t rxBufferPool;
@@ -173,6 +168,22 @@ const osMessageQueueAttr_t ethTxQueue_attributes = {
     .attr_bits = 0
 };
 
+
+static char IOmap[128];
+int usedMemory;
+SV630N_Outputs *pdoOutputs;
+SV630N_Inputs *pdoInputs;
+bool ecIsRunning = FALSE;
+
+/* USER CODE END Variables */
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 
@@ -182,6 +193,7 @@ void StartEthInitTask(void *argument);
 void StartEthReceiveTask(void *argument);
 void StartEthSendTask(void *argument);
 void StartEthercatTask(void *argument);
+void StartEthercatRtTask(void *argument);
 static uint8_t addSum(const uint8_t *pData, int len);
 static bool checkSum(const uint8_t *pData, int len, uint8_t target);
 void switchState();
@@ -386,6 +398,7 @@ void StartEthInitTask(void *argument)
     MX_ETH_Init(); // 这个初始化过程必须在线程中进行，否则会出现一些地址错误，原因暂不明，猜测是跟 RTOS 的内存管理相关
     ethSendTaskHandle = osThreadNew(StartEthSendTask, NULL, &ethSendTask_attributes);
     ethReceiveTaskHandle = osThreadNew(StartEthReceiveTask, NULL, &ethReceiveTask_attributes);
+    ethercatRtTaskHandle = osThreadNew(StartEthercatRtTask, NULL, &ethercatRtTask_attributes);
     ethercatTaskHandle = osThreadNew(StartEthercatTask, NULL, &ethercatTask_attributes);
     
     osThreadExit();
@@ -449,8 +462,8 @@ void StartEthercatTask(void *argument)
 {
 #define SYNC0TIME 10000000
     UNUSED(argument);
-    bool isRunning = FALSE;
     int SV630N_idx = 0;
+    uint16_t ecState = 0;
 
     oledLogClear();
     oledLog("SOEM initializing.");
@@ -460,11 +473,13 @@ void StartEthercatTask(void *argument)
         oledLogClear();
         oledLog("SOEM configuring.");
         
-        if (ec_config_init(FALSE) > 0)
+        if (ec_config_init(FALSE) > 0) // 进入 PRE-OP 状态
         {
-            // convert ec_slavecount to string
+            ecState = ec_statecheck(0, EC_STATE_PRE_OP, EC_TIMEOUTSTATE); // 现在应该处于 PRE-OP 状态
+            DEBUG_PRINT("EC state: %u\n", ecState);
+
             char ec_slavecount_str[20];
-            sprintf(ec_slavecount_str, "Slaves found: %d", ec_slavecount);
+            sprintf(ec_slavecount_str, "Slaves found: %d", ec_slavecount);  // convert ec_slavecount to string
             oledLogClear();
             oledLog(ec_slavecount_str);
 
@@ -479,6 +494,7 @@ void StartEthercatTask(void *argument)
                 }
             }
 
+            // 配置 DC 时钟
             if (ec_configdc()) {
                 DEBUG_PRINT("DC configured.\r\n");
             }
@@ -493,95 +509,111 @@ void StartEthercatTask(void *argument)
                 Error_Handler(); // 需要增大 IOmap 的空间
             }
 
+            // 同步时钟 sync0
             ec_dcsync0(SV630N_idx, TRUE, SYNC0TIME, 3000);
             DEBUG_PRINT("DC sync complete.\r\n");
 
-			uint16_t ecState = ec_statecheck(0, EC_STATE_SAFE_OP,  EC_TIMEOUTSTATE);
-            DEBUG_PRINT("slave state: %u\r\n", ecState); // 确认进入 SAFE_OP 状态
+            // 确认进入 SAFE_OP 状态
+			ecState = ec_statecheck(0, EC_STATE_SAFE_OP,  EC_TIMEOUTSTATE);
+            DEBUG_PRINT("slave state: %u\r\n", ecState); 
 
             // // 请求进入 OPERATIONAL 状态
             uint16_t expectedWKC = (ec_group[0].outputsWKC * 2) + ec_group[0].inputsWKC;
-            printf("Calculated workcounter %d\n", expectedWKC);
+            DEBUG_PRINT("Calculated workcounter %d\n", expectedWKC);
 
             ec_slave[0].state = EC_STATE_OPERATIONAL;
             ec_send_processdata();
-            ec_receive_processdata(EC_TIMEOUTRET3);
-            
-            ec_slave[0].state = EC_STATE_OPERATIONAL;
+            ec_receive_processdata(EC_TIMEOUTRET);
             ec_writestate(0);
-            ec_readstate();
+            // ec_readstate();
 
             int check = 200;
             do
             {
-                ec_slave[0].state = EC_STATE_OPERATIONAL;
-                ec_send_processdata();
-                ec_receive_processdata(EC_TIMEOUTRET);
+                // ec_slave[0].state = EC_STATE_OPERATIONAL;
+                // ec_send_processdata();
+                // ec_receive_processdata(EC_TIMEOUTRET);
                 ec_statecheck(0, EC_STATE_OPERATIONAL, 50000);
                 // DEBUG_PRINT("slave state: %u\r\n", ecState);
             } while (check-- && (ec_slave[0].state != EC_STATE_OPERATIONAL));
-            ecState = ec_statecheck(0, EC_STATE_OPERATIONAL, 50000);
+
+            ecState = ec_statecheck(0, EC_STATE_OPERATIONAL, 50000); // 确认已进入 OP 状态
             DEBUG_PRINT("slave state: %u\r\n", ecState);
 
-            if (SV630N_idx)
+            for(int i=0; i<10; i++ )
+			{
+				ec_slave[0].state = EC_STATE_OPERATIONAL;
+				ec_writestate(0);
+			}
+
+            // 配置 PDO 映射
+            if (ec_slave[SV630N_idx].state == EC_STATE_OPERATIONAL)
             {
                 pdoOutputs = (SV630N_Outputs *)ec_slave[SV630N_idx].outputs;
                 pdoInputs = (SV630N_Inputs *)ec_slave[SV630N_idx].inputs;
+                ecIsRunning = 1;
                 DEBUG_PRINT("PDO set up.\r\n");
+            } else {
+                DEBUG_PRINT("E/BOX not found in slave configuration.\r\n");
             }
 
-            /* send one valid process data to make outputs in slaves happy*/
-            ec_send_processdata();
-            ec_receive_processdata(EC_TIMEOUTRET);
+            // /* send one valid process data to make outputs in slaves happy*/
+            // ec_send_processdata();
+            // ec_receive_processdata(EC_TIMEOUTRET);
 
-            ec_writestate(0);
-            /* wait for all slaves to reach OP state */
-            uint16 state = ec_statecheck(0, EC_STATE_OPERATIONAL, EC_TIMEOUTSTATE);
-            DEBUG_PRINT("slave state: %u\r\n", state);
-            if (state == EC_STATE_OPERATIONAL)
-            {
-                DEBUG_PRINT("Get in operational state.\r\n");
-                isRunning = 1;
-                // CiA402 状态切换过程
-                // while ((pdoInputs->statusWord & 0x03df) == 0x0250)
-                // {
-                //     pdoOutputs->controlword |= 0x0006;
-                //     ec_send_processdata();
-                //     ec_receive_processdata(EC_TIMEOUTRET);
-                // }
+            // ec_writestate(0);
+            // /* wait for all slaves to reach OP state */
+            // uint16 state = ec_statecheck(0, EC_STATE_OPERATIONAL, EC_TIMEOUTSTATE);
+            // DEBUG_PRINT("slave state: %u\r\n", state);
+            // if (state == EC_STATE_OPERATIONAL)
+            // {
+            //     DEBUG_PRINT("Get in operational state.\r\n");
+            //     ecIsRunning = 1;
+            //     // CiA402 状态切换过程
+            //     // while ((pdoInputs->statusWord & 0x03df) == 0x0250)
+            //     // {
+            //     //     pdoOutputs->controlword |= 0x0006;
+            //     //     ec_send_processdata();
+            //     //     ec_receive_processdata(EC_TIMEOUTRET);
+            //     // }
 
-                // while ((pdoInputs->statusWord & 0x03ff) == 0x0231)
-                // {
-                //     pdoOutputs->controlword |= 0x0007;
-                //     ec_send_processdata();
-                //     ec_receive_processdata(EC_TIMEOUTRET);
-                // }
+            //     // while ((pdoInputs->statusWord & 0x03ff) == 0x0231)
+            //     // {
+            //     //     pdoOutputs->controlword |= 0x0007;
+            //     //     ec_send_processdata();
+            //     //     ec_receive_processdata(EC_TIMEOUTRET);
+            //     // }
 
-                // while ((pdoInputs->statusWord & 0x03ff) == 0x0233)
-                // {
-                //     pdoOutputs->controlword |= 0x000F;
-                //     ec_send_processdata();
-                //     ec_receive_processdata(EC_TIMEOUTRET);
-                // }
+            //     // while ((pdoInputs->statusWord & 0x03ff) == 0x0233)
+            //     // {
+            //     //     pdoOutputs->controlword |= 0x000F;
+            //     //     ec_send_processdata();
+            //     //     ec_receive_processdata(EC_TIMEOUTRET);
+            //     // }
 
-                // if ((pdoInputs->statusWord & 0x03ff) == 0x0237)
-                // {
-                //     isRunning = TRUE;
-                //     oledLogClear();
-                //     oledLog("Slaves are running.");
-                // }
-            }
+            //     // if ((pdoInputs->statusWord & 0x03ff) == 0x0237)
+            //     // {
+            //     //     isRunning = TRUE;
+            //     //     oledLogClear();
+            //     //     oledLog("Slaves are running.");
+            //     // }
+            // }
         }
         else
         {
             oledLogClear();
             oledLog("No slave found");
+            DEBUG_PRINT("No slave found.\r\n");
         }
+    } else {
+        DEBUG_PRINT("No socket connection Excecute as root\r\n");
     }
+
+    
     /* Infinite loop */
     for (;;)
     {
-        if (isRunning)
+        if (ecIsRunning)
         {
             switchState();
             ec_send_processdata();
@@ -591,6 +623,21 @@ void StartEthercatTask(void *argument)
         {
             osThreadExit();
         }
+    }
+}
+
+void StartEthercatRtTask(void *argument) {
+    UNUSED(argument);
+
+    for (;;)
+    {
+        if (ecIsRunning)
+        {
+            ec_send_processdata();
+            ec_receive_processdata(EC_TIMEOUTRET);
+        }
+
+        osDelay(1);               
     }
 }
 
@@ -676,6 +723,135 @@ void switchState() {
     //     oledLog("Slaves are running.");
     // }
 }
+
+// void simpletest(char *ifname)
+// {
+//     int i, j, oloop, iloop, chk, wkc;
+//     bool needlf = FALSE;
+//     bool inOP = FALSE;
+//     bool forceByteAlignment = FALSE;
+//     uint16_t expectedWKC = 0;
+
+//     printf("Starting simple test\n");
+
+//     /* initialise SOEM, bind socket to ifname */
+//     if (ec_init(ifname))
+//     {
+//         printf("ec_init on %s succeeded.\n", ifname);
+//         /* find and auto-config slaves */
+
+//         if (ec_config_init(FALSE) > 0)
+//         {
+//             printf("%d slaves found and configured.\n", ec_slavecount);
+
+//             if (forceByteAlignment)
+//             {
+//                 ec_config_map_aligned(&IOmap);
+//             }
+//             else
+//             {
+//                 ec_config_map(&IOmap);
+//             }
+
+//             ec_configdc();
+
+//             printf("Slaves mapped, state to SAFE_OP.\n");
+//             /* wait for all slaves to reach SAFE_OP state */
+//             ec_statecheck(0, EC_STATE_SAFE_OP, EC_TIMEOUTSTATE * 4);
+
+//             oloop = ec_slave[0].Obytes;
+//             if ((oloop == 0) && (ec_slave[0].Obits > 0))
+//                 oloop = 1;
+//             if (oloop > 8)
+//                 oloop = 8;
+//             iloop = ec_slave[0].Ibytes;
+//             if ((iloop == 0) && (ec_slave[0].Ibits > 0))
+//                 iloop = 1;
+//             if (iloop > 8)
+//                 iloop = 8;
+
+//             printf("segments : %d : %d %d %d %d\n", ec_group[0].nsegments, ec_group[0].IOsegment[0],
+//                    ec_group[0].IOsegment[1], ec_group[0].IOsegment[2], ec_group[0].IOsegment[3]);
+
+//             printf("Request operational state for all slaves\n");
+//             expectedWKC = (ec_group[0].outputsWKC * 2) + ec_group[0].inputsWKC;
+//             printf("Calculated workcounter %d\n", expectedWKC);
+//             ec_slave[0].state = EC_STATE_OPERATIONAL;
+//             /* send one valid process data to make outputs in slaves happy*/
+//             ec_send_processdata();
+//             ec_receive_processdata(EC_TIMEOUTRET);
+//             /* request OP state for all slaves */
+//             ec_writestate(0);
+//             chk = 200;
+//             /* wait for all slaves to reach OP state */
+//             do
+//             {
+//                 ec_send_processdata();
+//                 ec_receive_processdata(EC_TIMEOUTRET);
+//                 ec_statecheck(0, EC_STATE_OPERATIONAL, 50000);
+//             } while (chk-- && (ec_slave[0].state != EC_STATE_OPERATIONAL));
+//             if (ec_slave[0].state == EC_STATE_OPERATIONAL)
+//             {
+//                 printf("Operational state reached for all slaves.\n");
+//                 inOP = TRUE;
+//                 /* cyclic loop */
+//                 for (i = 1; i <= 10000; i++)
+//                 {
+//                     ec_send_processdata();
+//                     wkc = ec_receive_processdata(EC_TIMEOUTRET);
+
+//                     if (wkc >= expectedWKC)
+//                     {
+//                         printf("Processdata cycle %4d, WKC %d , O:", i, wkc);
+
+//                         for (j = 0; j < oloop; j++)
+//                         {
+//                             printf(" %2.2x", *(ec_slave[0].outputs + j));
+//                         }
+
+//                         printf(" I:");
+//                         for (j = 0; j < iloop; j++)
+//                         {
+//                             printf(" %2.2x", *(ec_slave[0].inputs + j));
+//                         }
+//                         printf(" T:%I64d\r", ec_DCtime);
+//                         needlf = TRUE;
+//                     }
+//                     osal_usleep(5000);
+//                 }
+//                 inOP = FALSE;
+//             }
+//             else
+//             {
+//                 printf("Not all slaves reached operational state.\n");
+//                 ec_readstate();
+//                 for (i = 1; i <= ec_slavecount; i++)
+//                 {
+//                     if (ec_slave[i].state != EC_STATE_OPERATIONAL)
+//                     {
+//                         printf("Slave %d State=0x%2.2x StatusCode=0x%4.4x : %s\n", i, ec_slave[i].state,
+//                                ec_slave[i].ALstatuscode, ec_ALstatuscode2string(ec_slave[i].ALstatuscode));
+//                     }
+//                 }
+//             }
+//             printf("\nRequest init state for all slaves\n");
+//             ec_slave[0].state = EC_STATE_INIT;
+//             /* request INIT state for all slaves */
+//             ec_writestate(0);
+//         }
+//         else
+//         {
+//             printf("No slaves found!\n");
+//         }
+//         printf("End simple test, close socket\n");
+//         /* stop SOEM, close socket */
+//         ec_close();
+//     }
+//     else
+//     {
+//         printf("No socket connection on %s\nExecute as root\n", ifname);
+//     }
+// }
 
 /* 回调函数 */
 
