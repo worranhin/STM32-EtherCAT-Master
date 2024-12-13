@@ -250,26 +250,22 @@ int ecx_outframe(ecx_portt* port, int idx, int stacknumber) {
   int retval = 0;
   ec_stackT* stack;
 
+  // DEBUG_PRINT("outframe: %d\n", idx);
+
   if (!stacknumber) {
     stack = &(port->stack);
   } else {
     stack = &(port->redport->stack);
   }
 
-  //   static ETH_BufferTypeDef txBuffer;
-  //   ETH_TxPacketConfigTypeDef config = TxConfig;
-
-  (*stack->rxbufstat)[idx] = EC_BUF_TX;
+  osMutexAcquire(port->tx_mutex, osWaitForever);
   if (ethSendRequest((*stack->txbuf)[idx], (*stack->txbuflength)[idx], 0) == 0) {
+    (*stack->rxbufstat)[idx] = EC_BUF_TX;
     retval = 1;
   } else {
     retval = 0;
   }
-  // if (ethSend((*stack->txbuf)[idx], (*stack->txbuflength)[idx]) == 0) {
-  //   retval = 1;
-  // } else {
-  //   retval = 0;
-  // }
+  osMutexRelease(port->tx_mutex);
 
   return retval;
 }
@@ -290,6 +286,7 @@ int ecx_outframe_red(ecx_portt* port, int idx) {
   /* transmit over primary socket*/
   rval = ecx_outframe(port, idx, 0);
 
+  assert_param(port->redstate == ECT_RED_NONE);
   if (port->redstate != ECT_RED_NONE)  // if in redundant mode
   {
     // mtx_lock (port->tx_mutex);
@@ -309,14 +306,15 @@ int ecx_outframe_red(ecx_portt* port, int idx) {
     assert_param(0);
     port->redport->rxbufstat[idx] = EC_BUF_TX;
 
+    ethSendRequest(&(port->txbuf2), port->txbuflength2, 0);
     //		bfin_EMAC_send(&(port->txbuf2), port->txbuflength2);
-    ETH_BufferTypeDef txBuffer;
-    ETH_TxPacketConfigTypeDef config = TxConfig;
-    txBuffer.buffer = &(port->txbuf2[0]);
-    txBuffer.len = port->txbuflength2;
-    txBuffer.next = NULL;
-    config.TxBuffer = &txBuffer;
-    HAL_ETH_Transmit_IT(&heth, &config);
+    // ETH_BufferTypeDef txBuffer;
+    // ETH_TxPacketConfigTypeDef config = TxConfig;
+    // txBuffer.buffer = &(port->txbuf2[0]);
+    // txBuffer.len = port->txbuflength2;
+    // txBuffer.next = NULL;
+    // config.TxBuffer = &txBuffer;
+    // HAL_ETH_Transmit_IT(&heth, &config);
 
     //		mtx_unlock (port->tx_mutex);
     osMutexRelease(port->tx_mutex);
@@ -379,6 +377,7 @@ int ecx_inframe(ecx_portt* port, int idx, int stacknumber) {
   //	{
   //		return -1;
   //	}
+  // DEBUG_PRINT("inframe: %d\n", idx);
   assert_param(stacknumber == 0);
 
   uint16 len;
@@ -406,7 +405,7 @@ int ecx_inframe(ecx_portt* port, int idx, int stacknumber) {
     (*stack->rxbufstat)[idx] = EC_BUF_COMPLETE;
   } else {  // not already in buffer
     // mtx_lock (port->rx_mutex);
-    osMutexAcquire(port->rx_mutex, 1000);
+    osMutexAcquire(port->rx_mutex, osWaitForever);
 
     /* non blocking call to retrieve frame from socket */
     if (ecx_recvpkt(port, stacknumber)) {
@@ -443,7 +442,10 @@ int ecx_inframe(ecx_portt* port, int idx, int stacknumber) {
             (*stack->rxsa)[idxf] = oshw_ntohs(pEthHeader->sa1);
           } else {
             /* strange things happend */
-            Error_Handler();
+            DEBUG_PRINT("strange things happened while inframe.");
+            DEBUG_PRINT("requested idx: %d, stat: %d, received idx: %d, stat: %d\n", 
+              idx, (*stack->rxbufstat)[idx], idxf, (*stack->rxbufstat)[idxf]);
+            // Error_Handler();
           }
         }
       }

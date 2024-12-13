@@ -80,6 +80,11 @@ const osMutexAttr_t ethTxConfigMutex_attributes = {
 		.name = "ethTxConfigMutex"
 };
 
+// osMutexId_t uartMutex;
+// const osMutexAttr_t uartMutex_attributes = {
+// 		.name = "uartMutex"
+// };
+
 // osSemaphoreId_t tim14ExpireSemaphore;
 // const osSemaphoreAttr_t tim14ExpireSemaphore_attributes = {
 // 		.name = "tim14ExpireSemaphore",
@@ -149,7 +154,7 @@ const osThreadAttr_t ethercatTask_attributes = {
 osThreadId_t ethercatRtTaskHandle;
 const osThreadAttr_t ethercatRtTask_attributes = {
     .name = "ethercatRtTask",
-    .stack_size = 128 * 4,
+    .stack_size = 512 * 4,
     .priority = (osPriority_t)osPriorityRealtime,
 };
 
@@ -180,7 +185,7 @@ bool ecIsRunning = FALSE;
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 512 * 4,
+  .stack_size = 1024 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 
@@ -460,7 +465,7 @@ void StartEthReceiveTask(void *argument)
 
 void StartEthercatTask(void *argument)
 {
-#define SYNC0TIME 10000000
+#define SYNC0TIME 1000000
     UNUSED(argument);
     int SV630N_idx = 0;
     uint16_t ecState = 0;
@@ -499,6 +504,24 @@ void StartEthercatTask(void *argument)
                 DEBUG_PRINT("DC configured.\r\n");
             }
 
+            ecIsRunning = TRUE;
+            uint16 slaveh = ecx_context.slavelist[SV630N_idx].configadr;
+            uint32_t dcDiff = 0xffffffff;
+            osDelay(10000); // 让子弹飞一会
+
+            while(dcDiff > 1000000) {
+                ec_FPRD(slaveh, ECT_REG_DCSYSDIFF, sizeof(dcDiff), &dcDiff, EC_TIMEOUTRET);
+                bool localTimeIsSmaller = ((dcDiff & 0x80000000) >> 31);
+                dcDiff = dcDiff & 0x7fffffff;
+                if (localTimeIsSmaller) {
+                    DEBUG_PRINT("local time is smaller than received one\n");
+                } else {
+                    DEBUG_PRINT("local time is greater or equal than received one\n");
+                }
+                DEBUG_PRINT("DC diff: %lu\r\n", dcDiff);
+                osDelay(1000);
+            }
+
             // config IOmap
             usedMemory = ec_config_map(&IOmap);
             DEBUG_PRINT("IOmap size: %d\r\n", usedMemory);
@@ -516,18 +539,21 @@ void StartEthercatTask(void *argument)
             // 确认进入 SAFE_OP 状态
 			ecState = ec_statecheck(0, EC_STATE_SAFE_OP,  EC_TIMEOUTSTATE);
             DEBUG_PRINT("slave state: %u\r\n", ecState); 
+            // ecIsRunning = TRUE;
+            // osDelay(10000); // 让子弹飞一会
 
             // // 请求进入 OPERATIONAL 状态
             uint16_t expectedWKC = (ec_group[0].outputsWKC * 2) + ec_group[0].inputsWKC;
             DEBUG_PRINT("Calculated workcounter %d\n", expectedWKC);
 
             ec_slave[0].state = EC_STATE_OPERATIONAL;
-            ec_send_processdata();
-            ec_receive_processdata(EC_TIMEOUTRET);
+            osDelay(5);
+            // ec_send_processdata();
+            // ec_receive_processdata(EC_TIMEOUTRET);
             ec_writestate(0);
             // ec_readstate();
 
-            int check = 200;
+            int check = 2000;
             do
             {
                 // ec_slave[0].state = EC_STATE_OPERATIONAL;
@@ -636,7 +662,6 @@ void StartEthercatRtTask(void *argument) {
             ec_send_processdata();
             ec_receive_processdata(EC_TIMEOUTRET);
         }
-
         osDelay(1);               
     }
 }

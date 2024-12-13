@@ -15,6 +15,8 @@
 #include "ethercatmain.h"
 #include "ethercatdc.h"
 
+// #include "main.h"
+
 #define PORTM0 0x01
 #define PORTM1 0x02
 #define PORTM2 0x04
@@ -72,6 +74,8 @@ void ecx_dcsync0(ecx_contextt *context, uint16 slave, boolean act, uint32 CyclTi
    tc = htoel(CyclTime);
    (void)ecx_FPWR(context->port, slaveh, ECT_REG_DCCYCLE0, sizeof(tc), &tc, EC_TIMEOUTRET); /* SYNC0 cycle time */
    (void)ecx_FPWR(context->port, slaveh, ECT_REG_DCSYNCACT, sizeof(RA), &RA, EC_TIMEOUTRET); /* activate cyclic operation */
+
+   // DEBUG_PRINT("t=%ld, t1=%ld, tc=%ld\n", t, t1, tc);
 
     // update ec_slave state
     context->slavelist[slave].DCactive = (uint8)act;
@@ -267,7 +271,7 @@ boolean ecx_configdc(ecx_contextt *context)
    context->grouplist[0].hasdc = FALSE;
    ht = 0;
 
-   ecx_BWR(context->port, 0, ECT_REG_DCTIME0, sizeof(ht), &ht, EC_TIMEOUTRET);  /* ·¢ËÍ´«ÊäÑÓ³Ù±¨ÎÄ£¬Ëù´æ¶Ë¿ÚÊ±¼ä */
+   ecx_BWR(context->port, 0, ECT_REG_DCTIME0, sizeof(ht), &ht, EC_TIMEOUTRET);  /* ï¿½ï¿½ï¿½Í´ï¿½ï¿½ï¿½ï¿½Ó³Ù±ï¿½ï¿½Ä£ï¿½ï¿½ï¿½ï¿½ï¿½Ë¿ï¿½Ê±ï¿½ï¿½ */
    mastertime = osal_current_time();
    mastertime.sec -= 946684800UL;  /* EtherCAT uses 2000-01-01 as epoch start instead of 1970-01-01 */
    mastertime64 = (((uint64)mastertime.sec * 1000000) + (uint64)mastertime.usec) * 1000;
@@ -293,14 +297,14 @@ boolean ecx_configdc(ecx_contextt *context)
          parenthold = 0;
          prevDCslave = i;
          slaveh = context->slavelist[i].configadr;
-         (void)ecx_FPRD(context->port, slaveh, ECT_REG_DCTIME0, sizeof(ht), &ht, EC_TIMEOUTRET);//¶ÁÈ¡¸÷¶Ë¿ÚµÄËù´æµÄÊ±¼ä
+         (void)ecx_FPRD(context->port, slaveh, ECT_REG_DCTIME0, sizeof(ht), &ht, EC_TIMEOUTRET);//ï¿½ï¿½È¡ï¿½ï¿½ï¿½Ë¿Úµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½
          context->slavelist[i].DCrtA = etohl(ht);
          /* 64bit latched DCrecvTimeA of each specific slave */
-         (void)ecx_FPRD(context->port, slaveh, ECT_REG_DCSOF, sizeof(hrt), &hrt, EC_TIMEOUTRET);//¶ÁÈ¡¸÷¶Ë¿ÚµÄËù´æµÄÊ±¼ä
+         (void)ecx_FPRD(context->port, slaveh, ECT_REG_DCSOF, sizeof(hrt), &hrt, EC_TIMEOUTRET);//ï¿½ï¿½È¡ï¿½ï¿½ï¿½Ë¿Úµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½
          /* use it as offset in order to set local time around 0 + mastertime */
          hrt = htoell(-etohll(hrt) + mastertime64);
          /* save it in the offset register */
-         (void)ecx_FPWR(context->port, slaveh, ECT_REG_DCSYSOFFSET, sizeof(hrt), &hrt, EC_TIMEOUTRET);//Ð´ÈëÊ±¼äÆ«ÒÆÁ¿
+         (void)ecx_FPWR(context->port, slaveh, ECT_REG_DCSYSOFFSET, sizeof(hrt), &hrt, EC_TIMEOUTRET);//Ð´ï¿½ï¿½Ê±ï¿½ï¿½Æ«ï¿½ï¿½ï¿½ï¿½
          (void)ecx_FPRD(context->port, slaveh, ECT_REG_DCTIME1, sizeof(ht), &ht, EC_TIMEOUTRET);
          context->slavelist[i].DCrtB = etohl(ht);
          (void)ecx_FPRD(context->port, slaveh, ECT_REG_DCTIME2, sizeof(ht), &ht, EC_TIMEOUTRET);
