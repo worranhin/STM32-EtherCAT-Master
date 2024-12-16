@@ -1,51 +1,90 @@
+/* USER CODE BEGIN Header */
+/**
+ ******************************************************************************
+ * @file    eth.h
+ * @brief   This file contains all the function prototypes for
+ *          the eth.c file
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2024 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
+/* USER CODE END Header */
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __ETH_H__
+#define __ETH_H__
 
-#ifndef __eth_H
-#define __eth_H
 #ifdef __cplusplus
- extern "C" {
+extern "C" {
 #endif
 
-/* 包含头文件 ----------------------------------------------------------------*/
-#include "stm32F4xx_hal.h"
+/* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
-/* 私有类型定义 --------------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
 
-/* 私有宏定义 ----------------------------------------------------------------*/
-//#define ETH_RCC_CLK_ENABLE()                __HAL_RCC_ETH_CLK_ENABLE()
-//
-//#define ETH_GPIO_ClK_ENABLE()              {__HAL_RCC_GPIOA_CLK_ENABLE();__HAL_RCC_GPIOC_CLK_ENABLE();\
-//                                            __HAL_RCC_GPIOB_CLK_ENABLE();__HAL_RCC_GPIOG_CLK_ENABLE();}
-//
-//#define GPIO_AFx_ETH                        GPIO_AF11_ETH
-//
-//#ifndef ETH_TX_DESC_CNT
-// #define ETH_TX_DESC_CNT         4
-//#endif
-//
-//#ifndef ETH_RX_DESC_CNT
-// #define ETH_RX_DESC_CNT         4
-//#endif
+#include "lan8720.h"
 
-/* 私有变量 ------------------------------------------------------------------*/
-
-/* 扩展变量 ------------------------------------------------------------------*/
+/* USER CODE END Includes */
 
 extern ETH_HandleTypeDef heth;
 
-/* 私有函数原形 --------------------------------------------------------------*/
+/* USER CODE BEGIN Private defines */
 
-/* 函数体 --------------------------------------------------------------------*/
+extern ETH_TxPacketConfigTypeDef TxConfig;
 
-//void MX_ETH_Init(void);
-//void PHY_Init(void);
-//void low_level_output(uint8_t *p,uint32_t length);
-int bfin_EMAC_send (void *packet, int length);
-int bfin_EMAC_recv (uint8_t * packet, size_t size);
-//void printfBuffer(uint8_t *dat, uint32_t len );
+typedef struct {
+  ETH_BufferTypeDef AppBuff;
+  uint8_t buffer[ETH_RX_BUF_SIZE] __ALIGNED(32);
+} ETH_AppBuff;
 
+typedef struct {
+  ETH_BufferTypeDef* head;
+  ETH_BufferTypeDef* tail;
+  unsigned int len;
+} RxBufferList;
+
+typedef struct {
+  uint8_t dest_mac[6];
+  uint8_t src_mac[6];
+  uint8_t type[2];
+  uint8_t payload[100];
+} ethernet_frame_t;
+
+/* USER CODE END Private defines */
+
+void MX_ETH_Init(void);
+
+/* USER CODE BEGIN Prototypes */
+
+void ETH_StartLink(void);
+void ETH_ConstructEthernetFrame(ethernet_frame_t* frame,
+                                uint8_t* dest_mac,
+                                uint8_t* src_mac,
+                                uint8_t* type,
+                                uint8_t* payload,
+                                uint16_t payload_len);
+int ethSend(void* pBuff, int len);
+int ethSendRequest(void *pBuff, uint32_t len, uint32_t timeout);
+void ethSendProcess(ETH_AppBuff* appBuff, uint32_t timeout);
+int ethReceive(void** pPacket);
+int ethReceiveRequest(void* pBuffer, uint32_t timeout);
+int ethRxListPush(ETH_BufferTypeDef* pBuff);
+int ethRxListPop(ETH_BufferTypeDef** pBuff);
+void ethRxBufferFree(void* pBuff);
+
+/* USER CODE END Prototypes */
 
 #ifdef __cplusplus
 }
 #endif
-#endif /*__ eth_H */
+
+#endif /* __ETH_H__ */
+

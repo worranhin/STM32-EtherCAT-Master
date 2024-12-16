@@ -32,6 +32,9 @@ extern "C" {
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include "global.h"
+#include <stdio.h>
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -47,6 +50,9 @@ extern "C" {
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
 
+#define DEBUG_PRINT printf
+// #define DEBUG_PRINT(...) do {} while (0)
+
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
@@ -54,9 +60,20 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 
+uint32_t getCurrentSecond(void);
+uint32_t getCurrentUs(void);
+
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define LED1_Pin GPIO_PIN_0
+#define LED1_GPIO_Port GPIOA
+#define LED2_Pin GPIO_PIN_3
+#define LED2_GPIO_Port GPIOA
+#define LED3_Pin GPIO_PIN_4
+#define LED3_GPIO_Port GPIOA
+#define LED4_Pin GPIO_PIN_6
+#define LED4_GPIO_Port GPIOA
 #define LED5_Pin GPIO_PIN_8
 #define LED5_GPIO_Port GPIOA
 #define KEY1_Pin GPIO_PIN_10
@@ -67,6 +84,8 @@ void Error_Handler(void);
 #define KEY2_GPIO_Port GPIOG
 
 /* USER CODE BEGIN Private defines */
+
+#define DEBUG_MESSAGE
 
 /* USER CODE END Private defines */
 

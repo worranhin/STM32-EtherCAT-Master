@@ -25,9 +25,10 @@
 #include "stdlib.h"
 #include "oled.h"
 #include "oledfont.h"
-#include "delay.h"
+//#include "delay.h"
 /* User Include Begin */
 #include <string.h>
+#include "cmsis_os.h"
 /* User Include End */
 
 
@@ -56,7 +57,7 @@ static uint8_t g_oled_gram[128][8];
 /* User Private Variable Begin */
 
 #define LOG_BUFFER_SIZE 200
-static char logBuffer[LOG_BUFFER_SIZE] = ""; // 存储日志信息
+static char oledLogBuffer[LOG_BUFFER_SIZE] = ""; // 存储日志信息
 static int logLength = 0;
 
 /* User Private Variable End */
@@ -478,7 +479,8 @@ void oled_init(void)
     OLED_RS(1);
 
     OLED_RST(0);
-    delay_ms(100);
+    HAL_Delay(100);
+//    delay_ms(100);
     OLED_RST(1);
 
     oled_wr_byte(0xAE, OLED_CMD);   /* 关闭显示 */
@@ -517,11 +519,13 @@ void oled_init(void)
 
 void oledLog(const char* msg) {
 	int msgLength = strlen(msg);
+
+    osMutexAcquire(oledMutex, osWaitForever);
 	if (msgLength + logLength + 1 < LOG_BUFFER_SIZE) {
-		strcat(logBuffer, msg);
+		strcat(oledLogBuffer, msg);
 		logLength += msgLength;
 	} else if(msgLength + 1 < LOG_BUFFER_SIZE) {
-		strcpy(logBuffer, msg);
+		strcpy(oledLogBuffer, msg);
 		logLength = msgLength;
 	} else {
 		oledLog("Error in oledLog: msg too long.");
@@ -530,16 +534,33 @@ void oledLog(const char* msg) {
 
 	oled_clear();
 	oled_show_string(0, 0, "Log", 12);
-	oled_show_string(0, 20, logBuffer, 12);
+	oled_show_string(0, 20, oledLogBuffer, 12);
 	oled_refresh_gram();
+    osMutexRelease(oledMutex);
 }
 
 void oledLogClear(void) {
-	strcpy(logBuffer, "");
+	// strcpy(oledLogBuffer, "");
+    osMutexAcquire(oledMutex, osWaitForever);
+    memset(oledLogBuffer, 0, LOG_BUFFER_SIZE);
 	logLength = 0;
 
 	oled_clear();
 	oled_show_string(0, 0, "Log", 12);
-	oled_show_string(0, 20, logBuffer, 12);
+	oled_show_string(0, 20, oledLogBuffer, 12);
 	oled_refresh_gram();
+    osMutexRelease(oledMutex);
+}
+
+void oledLogBufferPut(char c) {
+    osMutexAcquire(oledMutex, osWaitForever);
+    if (logLength + 1 < LOG_BUFFER_SIZE) {
+        strcat(oledLogBuffer, &c);
+        logLength++;
+    } else {
+        oledLogClear();
+        strcat(oledLogBuffer, &c);
+        logLength++;
+    }
+    osMutexRelease(oledMutex);
 }

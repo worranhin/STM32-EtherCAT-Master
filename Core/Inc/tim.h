@@ -1,20 +1,58 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    tim.h
+  * @brief   This file contains all the function prototypes for
+  *          the tim.c file
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2024 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __TIM_H__
+#define __TIM_H__
 
-#ifndef __tim_H
-#define __tim_H
 #ifdef __cplusplus
- extern "C" {
+extern "C" {
 #endif
 
-/* 包含头文件 ----------------------------------------------------------------*/
-#include "stm32F4xx_hal.h"
+/* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
+/* USER CODE BEGIN Includes */
 
-uint32_t GetSec(void);
-uint32_t GetUSec(void);
+/* USER CODE END Includes */
 
+extern TIM_HandleTypeDef htim2;
+
+extern TIM_HandleTypeDef htim3;
+
+extern TIM_HandleTypeDef htim13;
+
+/* USER CODE BEGIN Private defines */
+
+/* USER CODE END Private defines */
+
+void MX_TIM2_Init(void);
+void MX_TIM3_Init(void);
+void MX_TIM13_Init(void);
+
+/* USER CODE BEGIN Prototypes */
+
+/* USER CODE END Prototypes */
 
 #ifdef __cplusplus
 }
 #endif
-#endif /*__ tim_H */
+
+#endif /* __TIM_H__ */
+

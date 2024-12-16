@@ -202,13 +202,13 @@ void delay_ms(uint16_t nms)
     delay_us((uint32_t)(nms * 1000));                   /* 普通方式延时 */
 }
 
-/**
- * @brief       HAL库内部函数用到的延时
- * @note        HAL库的延时默认用Systick，如果我们没有开Systick的中断会导致调用这个延时后无法退出
- * @param       Delay : 要延时的毫秒数
- * @retval      None
- */
-void HAL_Delay(uint32_t Delay)
-{
-     delay_ms(Delay);
-}
+///**
+// * @brief       HAL库内部函数用到的延时
+// * @note        HAL库的延时默认用Systick，如果我们没有开Systick的中断会导致调用这个延时后无法退出
+// * @param       Delay : 要延时的毫秒数
+// * @retval      None
+// */
+//void HAL_Delay(uint32_t Delay)
+//{
+//     delay_ms(Delay);
+//}
