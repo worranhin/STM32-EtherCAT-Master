@@ -1,3 +1,7 @@
+# STM32-EtherCAT-Master
+
+这是一个使用 STM32 的 EtherCAT 主站项目。
+
 ## 通讯格式定义
 
 与上位机的通讯通过 UART 实现，波特率为 115200，一帧数据由帧头+帧数据组成。
@@ -77,4 +81,11 @@ eth.c | ethRxBufferFree() | Free
 
 ### ethTxQueue
 
-内容物：`ETH_AppBuff*`  
+内容物：`ETH_AppBuff*` 
+
+## Credits
+
+This project uses the following open source library:
+- SOEM (GNU General Public License version 2 with exception)
+- LwIP modified by ST 
+- FreeRTOS modified by ST (BSD 3-Clause license)
